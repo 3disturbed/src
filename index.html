@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PixelArtPro - Canvas Pixel Editor</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>PixelArtPro</h1>
+            <div class="file-menu">
+                <button id="newProjectBtn" class="btn" title="New Project">New</button>
+                <button id="openProjectBtn" class="btn" title="Open Project">Open</button>
+                <button id="saveProjectBtn" class="btn" title="Save Project">Save</button>
+                <input type="file" id="loadProjectInput" style="display: none;" accept=".pixelart">
+            </div>
+        </header>
+
+        <!-- Main editing area -->
+        <div class="main-workspace">
+            <!-- Left sidebar - Tools and Info -->
+            <aside class="left-sidebar">
+                <div class="panel">
+                    <h3>Tools</h3>
+                    <div class="tools-grid">
+                        <button class="tool-btn active" data-tool="pencil" title="Pencil (P)">✏️ Pencil</button>
+                        <button class="tool-btn" data-tool="eraser" title="Eraser (E)">🧹 Eraser</button>
+                        <button class="tool-btn" data-tool="fill" title="Fill Bucket (B)">🪣 Fill</button>
+                        <button class="tool-btn" data-tool="eyedropper" title="Eye Dropper (I)">🎯 Pick</button>
+                        <button class="tool-btn" data-tool="line" title="Line (L)">📏 Line</button>
+                        <button class="tool-btn" data-tool="rect" title="Rectangle (R)">▭ Rect</button>
+                        <button class="tool-btn" data-tool="circle" title="Circle (C)">● Circle</button>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h3>Canvas Size</h3>
+                    <div class="input-group">
+                        <label>Width:</label>
+                        <input type="number" id="canvasWidth" value="32" min="8" max="512">
+                    </div>
+                    <div class="input-group">
+                        <label>Height:</label>
+                        <input type="number" id="canvasHeight" value="32" min="8" max="512">
+                    </div>
+                    <button id="resizeCanvasBtn" class="btn">Apply</button>
+                </div>
+
+                <div class="panel">
+                    <h3>Color & Brush</h3>
+                    <div class="input-group">
+                        <label>Color:</label>
+                        <div class="color-picker-wrapper">
+                            <input type="color" id="colorPicker" value="#000000">
+                            <span id="colorHex">#000000</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>Brush Size:</label>
+                        <input type="range" id="brushSize" min="1" max="32" value="1">
+                        <span id="brushSizeLabel">1</span>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h3>Zoom</h3>
+                    <input type="range" id="zoomSlider" min="1" max="16" value="16">
+                    <span id="zoomLabel">16x</span>
+                </div>
+
+                <div class="panel">
+                    <h3>Edit</h3>
+                    <button id="undoBtn" class="btn" title="Undo">↶ Undo</button>
+                    <button id="redoBtn" class="btn" title="Redo">↷ Redo</button>
+                    <button id="clearBtn" class="btn" title="Clear Canvas">Clear</button>
+                </div>
+            </aside>
+
+            <!-- Canvas area -->
+            <div class="canvas-area">
+                <div class="canvas-wrapper">
+                    <canvas id="pixelCanvas"></canvas>
+                </div>
+                <div class="canvas-info">
+                    <span id="pixelInfo">x: 0, y: 0</span>
+                </div>
+            </div>
+
+            <!-- Right sidebar - Layers and Frames -->
+            <aside class="right-sidebar">
+                <!-- Layers Panel -->
+                <div class="panel">
+                    <h3>Layers</h3>
+                    <div class="layers-controls">
+                        <button id="newLayerBtn" class="btn-small" title="New Layer">+ Layer</button>
+                        <button id="deleteLayerBtn" class="btn-small" title="Delete Layer">- Layer</button>
+                        <button id="duplicateLayerBtn" class="btn-small" title="Duplicate Layer">Dup</button>
+                    </div>
+                    <div id="layersList" class="layers-list"></div>
+                </div>
+
+                <!-- Frames Panel -->
+                <div class="panel">
+                    <h3>Frames</h3>
+                    <div class="frames-controls">
+                        <button id="newFrameBtn" class="btn-small" title="New Frame">+ Frame</button>
+                        <button id="deleteFrameBtn" class="btn-small" title="Delete Frame">- Frame</button>
+                        <div class="input-group">
+                            <label>FPS:</label>
+                            <input type="number" id="fpsInput" value="12" min="1" max="60">
+                        </div>
+                    </div>
+                    <div id="framesList" class="frames-list"></div>
+                    <div class="animation-controls">
+                        <button id="playAnimationBtn" class="btn">▶ Play</button>
+                        <button id="stopAnimationBtn" class="btn">⏹ Stop</button>
+                    </div>
+                </div>
+
+                <!-- Onion Skin Panel -->
+                <div class="panel">
+                    <h3>Onion Skin</h3>
+                    <div class="input-group">
+                        <label>
+                            <input type="checkbox" id="onionSkinToggle">
+                            Enable Onion Skin
+                        </label>
+                    </div>
+                    <div class="input-group">
+                        <label>Opacity:</label>
+                        <input type="range" id="onionSkinOpacity" min="0" max="100" value="50">
+                        <span id="opacityLabel">50%</span>
+                    </div>
+                    <div class="input-group">
+                        <label>Show Frames Back:</label>
+                        <input type="number" id="onionSkinBack" min="1" max="5" value="1">
+                    </div>
+                    <div class="input-group">
+                        <label>Show Frames Forward:</label>
+                        <input type="number" id="onionSkinForward" min="0" max="5" value="1">
+                    </div>
+                </div>
+
+                <!-- Export Panel -->
+                <div class="panel">
+                    <h3>Export</h3>
+                    <button id="exportPNGBtn" class="btn">Export PNG</button>
+                    <button id="exportGIFBtn" class="btn">Export GIF</button>
+                    <button id="exportJSONBtn" class="btn">Export Data</button>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <script src="utils.js"></script>
+    <script src="layers.js"></script>
+    <script src="frames.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

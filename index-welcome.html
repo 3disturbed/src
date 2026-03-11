@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PixelArtPro - Get Started</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 24px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .feature-card {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .feature-card h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .feature-card p {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .shortcut-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .shortcut-table th,
+        .shortcut-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .shortcut-table th {
+            background: #f5f5f5;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .shortcut-table tr:hover {
+            background: #f9f9f9;
+        }
+
+        .key {
+            background: #f5f5f5;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-weight: 600;
+        }
+
+        .tips {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 20px;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+
+        .tips h4 {
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+
+        .tips ul {
+            margin-left: 20px;
+            color: #555;
+        }
+
+        .tips li {
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+
+        footer {
+            background: #f5f5f5;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            border-top: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎨 PixelArtPro</h1>
+            <p>A Professional HTML5 Canvas Pixel Editor</p>
+        </div>
+
+        <div class="content">
+            <!-- Quick Start -->
+            <div class="section">
+                <h2>🚀 Quick Start</h2>
+                <p>Welcome to PixelArtPro! Get started creating pixel art in seconds:</p>
+                <div class="button-group">
+                    <a href="index.html" class="btn btn-primary">▶ Launch Editor</a>
+                    <a href="README.md" class="btn btn-secondary">📖 Read Documentation</a>
+                </div>
+            </div>
+
+            <!-- Features -->
+            <div class="section">
+                <h2>✨ Key Features</h2>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h3>🎯 Drawing Tools</h3>
+                        <p>Pencil, eraser, fill bucket, eyedropper, line, rectangle, and circle tools for complete creative control.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>📚 Layer System</h3>
+                        <p>Create, manage, and organize unlimited layers with opacity control and visibility toggling.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>🎬 Animation Frames</h3>
+                        <p>Build frame-by-frame animations with customizable FPS and duration per frame.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>👻 Onion Skins</h3>
+                        <p>Preview previous and next frame ghosting for smooth, fluent animation development.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>💾 Save & Load</h3>
+                        <p>Save complete projects as .pixelart files and export to PNG, JSON, and GIF formats.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>⚡ Full Control</h3>
+                        <p>50-step undo/redo, zoom up to 16x, grid overlay, and customizable canvas sizes.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Keyboard Shortcuts -->
+            <div class="section">
+                <h2>⌨️ Keyboard Shortcuts</h2>
+                <table class="shortcut-table">
+                    <thead>
+                        <tr>
+                            <th>Key</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="key">P</span></td>
+                            <td>Select Pencil tool</td>
+                        </tr>
+                        <tr>
+                            <td><span class="key">E</span></td>
+                            <td>Select Eraser tool</td>
+                        </tr>
+                        <tr>
+                            <td><span class="key">B</span></td>
+                            <td>Select Fill Bucket</td>
+                        </tr>
+                        <tr>
+                            <td><span class="key">I</span></td>
+                            <td>Select Eye Dropper</td>
+                        </tr>
+                        <tr>
+                            <td><span class="key">L</span></td>
+                            <td>Select Line tool</td>
+                        </tr>
+                        <tr>
+                            <td><span class="key">R</span></td>
+                            <td>Select Rectangle tool</td>
+                        </tr>
+                        <tr>
+                            <td><span class="key">C</span></td>
+                            <td>Select Circle tool</td>
+                        </tr>
+                        <tr>
+                            <td><span class="key">Ctrl</span> + <span class="key">Z</span></td>
+                            <td>Undo</td>
+                        </tr>
+                        <tr>
+                            <td><span class="key">Ctrl</span> + <span class="key">Y</span></td>
+                            <td>Redo</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Tips -->
+            <div class="section">
+                <h2>💡 Pro Tips</h2>
+                <div class="tips">
+                    <h4>Getting the Most Out of PixelArtPro:</h4>
+                    <ul>
+                        <li><strong>Organize with Layers:</strong> Separate different elements (background, character, effects) on different layers for easy editing.</li>
+                        <li><strong>Animation Workflow:</strong> Create your first pose, duplicate the frame, adjust slightly, and repeat for smooth animations.</li>
+                        <li><strong>Use Onion Skin:</strong> Enable onion skin with both forward and backward frames visible for best results.</li>
+                        <li><strong>Save Frequently:</strong> Use "Save Project" to regularly save your work as .pixelart files.</li>
+                        <li><strong>Zoom In/Out:</strong> Use the zoom slider to alternate between seeing details and the full picture.</li>
+                        <li><strong>Color Picker:</strong> Quick key <span class="key">I</span> to pick any color directly from the canvas.</li>
+                        <li><strong>Right-Click to Erase:</strong> Right-click while drawing to erase with the current brush size.</li>
+                        <li><strong>Grid Reference:</strong> Canvas grid appears automatically when zoomed in enough.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Getting Started Guide -->
+            <div class="section">
+                <h2>📝 Getting Started Guide</h2>
+                <h3 style="color: #667eea; margin: 20px 0 15px 0;">Step 1: Create Your First Canvas</h3>
+                <p>Click "Launch Editor" to open the pixel editor. You'll see a 32×32 pixel canvas with a background layer.</p>
+
+                <h3 style="color: #667eea; margin: 20px 0 15px 0;">Step 2: Draw Something</h3>
+                <p>Select the Pencil tool and click on the canvas to draw. Use the color picker to change colors. Adjust brush size for different stroke widths.</p>
+
+                <h3 style="color: #667eea; margin: 20px 0 15px 0;">Step 3: Organize with Layers</h3>
+                <p>Click "+ Layer" to add more layers. Switch between layers by clicking on them in the Layers panel. This keeps different parts of your art separate.</p>
+
+                <h3 style="color: #667eea; margin: 20px 0 15px 0;">Step 4: Create Animation</h3>
+                <p>Click "+ Frame" to add animation frames. Draw each frame, set the duration, and click Play to preview your animation.</p>
+
+                <h3 style="color: #667eea; margin: 20px 0 15px 0;">Step 5: Save Your Work</h3>
+                <p>Click "Save" to export your project as a .pixelart file that you can open later. Use "Export PNG" to save as an image file.</p>
+            </div>
+
+            <!-- Browser Support -->
+            <div class="section">
+                <h2>🖥️ Browser Requirements</h2>
+                <p>PixelArtPro works best on modern browsers with HTML5 Canvas support:</p>
+                <ul style="margin-left: 20px; line-height: 2;">
+                    <li>✅ Chrome/Chromium 90+</li>
+                    <li>✅ Firefox 88+</li>
+                    <li>✅ Safari 14+</li>
+                    <li>✅ Edge 90+</li>
+                </ul>
+            </div>
+        </div>
+
+        <footer>
+            <p>PixelArtPro © 2024 | Built with HTML5 Canvas & Vanilla JavaScript | No Dependencies Required</p>
+        </footer>
+    </div>
+</body>
+</html>
