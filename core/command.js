@@ -96,8 +96,8 @@ PAP.DrawCommand = class DrawCommand extends PAP.Command {
     _resolveLayer() {
         // Look up layer from the current app state
         if (this._layer && this._layer.id === this.layerId) return this._layer;
-        if (window.pixelArtPro && window.pixelArtPro.layerManager) {
-            return window.pixelArtPro.layerManager.layers.find(l => l.id === this.layerId) || null;
+        if (window.darkPixel && window.darkPixel.layerManager) {
+            return window.darkPixel.layerManager.layers.find(l => l.id === this.layerId) || null;
         }
         return null;
     }

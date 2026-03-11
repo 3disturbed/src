@@ -1,4 +1,4 @@
-// Layer Management System for PixelArtPro
+// Layer Management System for DarkPixel
 // Compositing now done via PAP.Compositor (render/compositor.js)
 
 class Layer {
@@ -196,6 +196,12 @@ class LayerManager {
         if (!layersList) return;
         layersList.innerHTML = '';
 
+        const blendModes = [
+            'source-over', 'multiply', 'screen', 'overlay',
+            'darken', 'lighten', 'color-dodge', 'color-burn',
+            'hard-light', 'soft-light', 'difference', 'exclusion'
+        ];
+
         for (let i = this.layers.length - 1; i >= 0; i--) {
             const layer = this.layers[i];
             const layerItem = document.createElement('div');
@@ -204,6 +210,7 @@ class LayerManager {
                 layerItem.classList.add('active');
             }
 
+            // Visibility toggle
             const visibilityToggle = document.createElement('span');
             visibilityToggle.className = 'layer-visibility';
             visibilityToggle.textContent = layer.visible ? '👁' : '🚫';
@@ -213,13 +220,53 @@ class LayerManager {
                 this.toggleLayerVisibility(i);
             };
 
+            // Layer name
             const nameSpan = document.createElement('span');
             nameSpan.className = 'layer-name';
             nameSpan.textContent = layer.name;
-            nameSpan.title = layer.name;
+            nameSpan.title = `${layer.name} — opacity: ${Math.round(layer.opacity * 100)}%`;
+
+            // Opacity slider
+            const opacitySlider = document.createElement('input');
+            opacitySlider.type = 'range';
+            opacitySlider.className = 'layer-opacity-mini';
+            opacitySlider.min = '0';
+            opacitySlider.max = '100';
+            opacitySlider.value = String(Math.round(layer.opacity * 100));
+            opacitySlider.title = `Opacity: ${Math.round(layer.opacity * 100)}%`;
+            opacitySlider.onclick = (e) => e.stopPropagation();
+            opacitySlider.ondblclick = (e) => e.stopPropagation();
+            opacitySlider.oninput = (e) => {
+                e.stopPropagation();
+                layer.opacity = parseInt(e.target.value) / 100;
+                opacitySlider.title = `Opacity: ${e.target.value}%`;
+                nameSpan.title = `${layer.name} — opacity: ${e.target.value}%`;
+                PAP.EventBus.emit('layers:changed');
+            };
+
+            // Blend mode dropdown
+            const blendSelect = document.createElement('select');
+            blendSelect.className = 'layer-blend-mini';
+            blendSelect.title = 'Blend mode';
+            blendSelect.onclick = (e) => e.stopPropagation();
+            blendSelect.ondblclick = (e) => e.stopPropagation();
+            blendModes.forEach(mode => {
+                const opt = document.createElement('option');
+                opt.value = mode;
+                opt.textContent = mode === 'source-over' ? 'Normal' : mode.replace(/-/g, ' ');
+                if (layer.blendMode === mode) opt.selected = true;
+                blendSelect.appendChild(opt);
+            });
+            blendSelect.onchange = (e) => {
+                e.stopPropagation();
+                layer.blendMode = e.target.value;
+                PAP.EventBus.emit('layers:changed');
+            };
 
             layerItem.appendChild(visibilityToggle);
             layerItem.appendChild(nameSpan);
+            layerItem.appendChild(opacitySlider);
+            layerItem.appendChild(blendSelect);
 
             layerItem.onclick = () => this.setActiveLayer(i);
             layerItem.ondblclick = () => {

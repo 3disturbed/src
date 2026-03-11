@@ -1,5 +1,5 @@
-// PixelArtPro Configuration & Advanced Settings
-// This file provides guidance on customizing and extending PixelArtPro
+// DarkPixel Configuration & Advanced Settings
+// This file provides guidance on customizing and extending DarkPixel
 
 /**
  * APPLICATION CONFIGURATION

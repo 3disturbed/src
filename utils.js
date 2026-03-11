@@ -1,4 +1,4 @@
-// Utility functions for PixelArtPro
+// Utility functions for DarkPixel
 // Color and PixelData classes have moved to core/color.js and core/pixel-data.js
 
 window.PAP = window.PAP || {};

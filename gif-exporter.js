@@ -1,4 +1,4 @@
-// GIF Export Module for PixelArtPro
+// GIF Export Module for DarkPixel
 // Requires: gif.js library (https://github.com/jnordberg/gif.js)
 // To use: Add <script src="gif.js"></script> before app.js
 

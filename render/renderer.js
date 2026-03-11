@@ -25,7 +25,10 @@ PAP.Renderer = class Renderer {
             startY,
             mouseX,
             mouseY,
-            currentColor
+            currentColor,
+            gridEnabled,
+            mirrorEnabled,
+            brushSize
         } = state;
 
         const ctx = this.ctx;
@@ -47,14 +50,24 @@ PAP.Renderer = class Renderer {
             this._drawOnionSkin(state);
         }
 
-        // 4. Grid overlay
-        if (zoom > 4) {
+        // 4. Grid overlay (only when enabled)
+        if (gridEnabled && zoom > 4) {
             this._drawGrid(w, h, zoom);
         }
 
-        // 5. Shape preview while drawing
-        if (isDrawing && ['line', 'rect', 'circle'].includes(currentTool)) {
+        // 5. Mirror guide line
+        if (mirrorEnabled) {
+            this._drawMirrorGuide(canvasWidth, h, zoom);
+        }
+
+        // 6. Shape preview while drawing
+        if (isDrawing && ['line', 'rect', 'circle', 'rectFilled', 'circleFilled'].includes(currentTool)) {
             this._drawShapePreview(startX, startY, mouseX, mouseY, zoom, currentTool, currentColor);
+        }
+
+        // 7. Brush cursor preview (when not drawing shapes)
+        if (mouseX !== undefined && mouseY !== undefined && !isDrawing) {
+            this._drawBrushCursor(mouseX, mouseY, zoom, brushSize || 1, canvasWidth, canvasHeight);
         }
     }
 
@@ -95,14 +108,49 @@ PAP.Renderer = class Renderer {
         ctx.stroke();
     }
 
+    _drawMirrorGuide(canvasWidth, h, zoom) {
+        const ctx = this.ctx;
+        const centerX = Math.floor(canvasWidth / 2) * zoom;
+
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 100, 100, 0.6)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+
+        ctx.beginPath();
+        ctx.moveTo(centerX + 0.5, 0);
+        ctx.lineTo(centerX + 0.5, h);
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    _drawBrushCursor(mouseX, mouseY, zoom, brushSize, canvasWidth, canvasHeight) {
+        if (mouseX < 0 || mouseY < 0 || mouseX >= canvasWidth || mouseY >= canvasHeight) return;
+
+        const ctx = this.ctx;
+        const offset = Math.floor(brushSize / 2);
+        const startPx = (mouseX - offset) * zoom;
+        const startPy = (mouseY - offset) * zoom;
+        const size = brushSize * zoom;
+
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 2]);
+        ctx.strokeRect(startPx + 0.5, startPy + 0.5, size, size);
+        ctx.restore();
+    }
+
     _drawShapePreview(startX, startY, mouseX, mouseY, zoom, tool, color) {
         const ctx = this.ctx;
-        ctx.strokeStyle = color.toCSSString();
+        const cssColor = color.toCSSString();
         ctx.globalAlpha = 0.5;
         ctx.lineWidth = 1;
 
         switch (tool) {
             case 'line':
+                ctx.strokeStyle = cssColor;
                 ctx.beginPath();
                 ctx.moveTo(startX * zoom + zoom / 2, startY * zoom + zoom / 2);
                 ctx.lineTo(mouseX * zoom + zoom / 2, mouseY * zoom + zoom / 2);
@@ -110,6 +158,7 @@ PAP.Renderer = class Renderer {
                 break;
 
             case 'rect': {
+                ctx.strokeStyle = cssColor;
                 const rx = Math.min(startX, mouseX) * zoom;
                 const ry = Math.min(startY, mouseY) * zoom;
                 const rw = (Math.abs(mouseX - startX) + 1) * zoom;
@@ -118,7 +167,18 @@ PAP.Renderer = class Renderer {
                 break;
             }
 
+            case 'rectFilled': {
+                ctx.fillStyle = cssColor;
+                const rx = Math.min(startX, mouseX) * zoom;
+                const ry = Math.min(startY, mouseY) * zoom;
+                const rw = (Math.abs(mouseX - startX) + 1) * zoom;
+                const rh = (Math.abs(mouseY - startY) + 1) * zoom;
+                ctx.fillRect(rx, ry, rw, rh);
+                break;
+            }
+
             case 'circle': {
+                ctx.strokeStyle = cssColor;
                 const radius = Math.max(
                     Math.abs(mouseX - startX),
                     Math.abs(mouseY - startY)
@@ -126,6 +186,18 @@ PAP.Renderer = class Renderer {
                 ctx.beginPath();
                 ctx.arc(startX * zoom + zoom / 2, startY * zoom + zoom / 2, radius, 0, Math.PI * 2);
                 ctx.stroke();
+                break;
+            }
+
+            case 'circleFilled': {
+                ctx.fillStyle = cssColor;
+                const radius = Math.max(
+                    Math.abs(mouseX - startX),
+                    Math.abs(mouseY - startY)
+                ) * zoom;
+                ctx.beginPath();
+                ctx.arc(startX * zoom + zoom / 2, startY * zoom + zoom / 2, radius, 0, Math.PI * 2);
+                ctx.fill();
                 break;
             }
         }

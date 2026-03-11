@@ -1,4 +1,4 @@
-// Frame and Animation Management System for PixelArtPro
+// Frame and Animation Management System for DarkPixel
 
 class Frame {
     constructor(layerManager, frameNumber = 1) {

@@ -1,4 +1,4 @@
-# PixelArtPro - Frequently Asked Questions
+# DarkPixel - Frequently Asked Questions
 
 ## Getting Started
 
@@ -6,7 +6,7 @@
 **A:** Open `index.html` in your web browser. No installation or server required - it's entirely client-side!
 
 ### Q: What browsers are supported?
-**A:** PixelArtPro works on all modern browsers:
+**A:** DarkPixel works on all modern browsers:
 - Chrome/Chromium 90+
 - Firefox 88+
 - Safari 14+
@@ -14,8 +14,8 @@
 
 For best performance, use the latest browser version.
 
-### Q: Do I need internet to use PixelArtPro?
-**A:** No! PixelArtPro works completely offline. All processing happens in your browser. However, you need to be able to open local HTML files.
+### Q: Do I need internet to use DarkPixel?
+**A:** No! DarkPixel works completely offline. All processing happens in your browser. However, you need to be able to open local HTML files.
 
 ### Q: Is my data saved automatically?
 **A:** No. You must explicitly save your project using the "Save" button. Use Ctrl+S or click "Save Project" regularly.
@@ -278,7 +278,7 @@ Release the mouse button to finalize the shape.
 - Project metadata
 
 ### Q: Can I use this for commercial projects?
-**A:** Yes! PixelArtPro is free to use commercially. No licensing required.
+**A:** Yes! DarkPixel is free to use commercially. No licensing required.
 
 ### Q: Is there a mobile version?
 **A:** Not optimized for touch. Works on tablets but not ideal. Desktop recommended.

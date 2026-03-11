@@ -1,4 +1,4 @@
-// Color class for PixelArtPro
+// Color class for DarkPixel
 window.PAP = window.PAP || {};
 
 PAP.Color = class Color {

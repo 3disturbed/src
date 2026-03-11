@@ -1,9 +1,9 @@
-# PixelArtPro - Quick Reference Guide
+# DarkPixel - Quick Reference Guide
 
 ## File Structure
 
 ```
-PixelArtPro/src/
+DarkPixel/src/
 ├── index.html              # Main editor application
 ├── index-welcome.html      # Welcome/getting started page
 ├── styles.css              # All styling
@@ -332,7 +332,7 @@ Current Version (1.0):
 ## Version Info
 
 ```
-PixelArtPro v1.0
+DarkPixel v1.0
 Built: 2024
 Technology: HTML5 Canvas + Vanilla JavaScript
 Size: ~50 KB total

@@ -3,182 +3,309 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>PixelArtPro - Canvas Pixel Editor</title>
+    <title>DarkPixel - Pixel Art Studio</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <h1>PixelArtPro</h1>
-            <div class="file-menu">
-                <button id="newProjectBtn" class="btn" title="New Project (Ctrl+N)">New</button>
-                <button id="openProjectBtn" class="btn" title="Open Project (Ctrl+O)">Open</button>
-                <button id="saveProjectBtn" class="btn" title="Save Project (Ctrl+S)">Save</button>
-                <input type="file" id="loadProjectInput" style="display: none;" accept=".pixelart">
+    <div class="app">
+        <!-- Top Menu Bar -->
+        <header class="menubar">
+            <div class="menubar-left">
+                <span class="app-logo">PAP</span>
+                <div class="menu-group">
+                    <button id="newProjectBtn" class="menu-btn" title="New Project (Ctrl+N)">
+                        <svg viewBox="0 0 16 16" class="icon"><path d="M2 1h8l4 4v10H2V1zm8 0v4h4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+                        <span>New</span>
+                    </button>
+                    <button id="openProjectBtn" class="menu-btn" title="Open Project (Ctrl+O)">
+                        <svg viewBox="0 0 16 16" class="icon"><path d="M1 4h4l2-2h5v2h3l-2 10H1z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+                        <span>Open</span>
+                    </button>
+                    <button id="saveProjectBtn" class="menu-btn" title="Save Project (Ctrl+S)">
+                        <svg viewBox="0 0 16 16" class="icon"><path d="M2 1h10l2 2v11H2V1zm3 0v4h6V1m-3 7a2 2 0 100 4 2 2 0 000-4z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+                        <span>Save</span>
+                    </button>
+                    <input type="file" id="loadProjectInput" style="display:none" accept=".pixelart,.json">
+                </div>
+                <div class="menu-separator"></div>
+                <div class="menu-group">
+                    <button id="undoBtn" class="menu-btn" title="Undo (Ctrl+Z)">
+                        <svg viewBox="0 0 16 16" class="icon"><path d="M5 4L1 8l4 4M1 8h10a4 4 0 010 0" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+                    </button>
+                    <button id="redoBtn" class="menu-btn" title="Redo (Ctrl+Y)">
+                        <svg viewBox="0 0 16 16" class="icon"><path d="M11 4l4 4-4 4M15 8H5a4 4 0 000 0" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+                    </button>
+                </div>
+                <div class="menu-separator"></div>
+                <div class="menu-group">
+                    <button id="gridToggleBtn" class="menu-btn toggle-btn active" title="Toggle Grid (G)">
+                        <svg viewBox="0 0 16 16" class="icon"><path d="M0 5.5h16M0 10.5h16M5.5 0v16M10.5 0v16" fill="none" stroke="currentColor" stroke-width="1"/></svg>
+                    </button>
+                    <button id="mirrorToggleBtn" class="menu-btn toggle-btn" title="Mirror Mode (M)">
+                        <svg viewBox="0 0 16 16" class="icon"><path d="M8 1v14M3 4l-1 8h4M13 4l1 8h-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="menubar-center">
+                <span class="canvas-dimensions" id="canvasDimLabel">32 x 32</span>
+                <span class="zoom-display" id="zoomDisplay">16x</span>
+            </div>
+            <div class="menubar-right">
+                <div class="menu-group">
+                    <button id="exportPNGBtn" class="menu-btn" title="Export PNG">
+                        <svg viewBox="0 0 16 16" class="icon"><path d="M8 1v9M4 6l4 4 4-4M2 12v2h12v-2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+                        <span>PNG</span>
+                    </button>
+                    <button id="exportGIFBtn" class="menu-btn" title="Export GIF">
+                        <svg viewBox="0 0 16 16" class="icon"><path d="M8 1v9M4 6l4 4 4-4M2 12v2h12v-2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+                        <span>GIF</span>
+                    </button>
+                    <button id="exportJSONBtn" class="menu-btn" title="Export Data">
+                        <svg viewBox="0 0 16 16" class="icon"><path d="M8 1v9M4 6l4 4 4-4M2 12v2h12v-2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+                        <span>JSON</span>
+                    </button>
+                </div>
             </div>
         </header>
 
-        <!-- Main editing area -->
-        <div class="main-workspace">
-            <!-- Left sidebar - Tools and Info -->
-            <aside class="left-sidebar">
-                <div class="panel">
-                    <h3>Tools</h3>
-                    <div class="tools-grid">
-                        <button class="tool-btn active" data-tool="pencil" title="Pencil (P)">✏️ Pencil</button>
-                        <button class="tool-btn" data-tool="eraser" title="Eraser (E)">🧹 Eraser</button>
-                        <button class="tool-btn" data-tool="fill" title="Fill Bucket (B)">🪣 Fill</button>
-                        <button class="tool-btn" data-tool="eyedropper" title="Eye Dropper (I)">🎯 Pick</button>
-                        <button class="tool-btn" data-tool="line" title="Line (L)">📏 Line</button>
-                        <button class="tool-btn" data-tool="rect" title="Rectangle (R)">▭ Rect</button>
-                        <button class="tool-btn" data-tool="circle" title="Circle (C)">● Circle</button>
-                    </div>
+        <!-- Main Content -->
+        <div class="workspace">
+            <!-- Left Toolbar - Tools -->
+            <aside class="toolbar" id="toolbar">
+                <div class="tool-section">
+                    <button class="tool-btn active" data-tool="pencil" title="Pencil (P)">
+                        <svg viewBox="0 0 24 24" class="tool-icon"><path d="M3 21l1.5-4.5L17 4l3 3L7.5 19.5zM14 7l3 3" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                    </button>
+                    <button class="tool-btn" data-tool="eraser" title="Eraser (E)">
+                        <svg viewBox="0 0 24 24" class="tool-icon"><path d="M20 20H7L3 16l10-10 7 7-4 4M14 6l4 4" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                    </button>
+                    <button class="tool-btn" data-tool="fill" title="Fill Bucket (B)">
+                        <svg viewBox="0 0 24 24" class="tool-icon"><path d="M5 16l6-6 5 5-6 6zM11 10l3-3M19 14c1 1 2 3 0 5s-3 0-3 0" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                    </button>
+                    <button class="tool-btn" data-tool="eyedropper" title="Eyedropper (I)">
+                        <svg viewBox="0 0 24 24" class="tool-icon"><path d="M20 4a3 3 0 00-4 0l-2 2-1-1-8 8 4 4 8-8-1-1 2-2a3 3 0 000-2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                    </button>
                 </div>
-
-                <div class="panel">
-                    <h3>Canvas Size</h3>
-                    <div class="input-group">
-                        <label>Width:</label>
-                        <input type="number" id="canvasWidth" value="32" min="8" max="512">
-                    </div>
-                    <div class="input-group">
-                        <label>Height:</label>
-                        <input type="number" id="canvasHeight" value="32" min="8" max="512">
-                    </div>
-                    <button id="resizeCanvasBtn" class="btn">Apply</button>
+                <div class="tool-divider"></div>
+                <div class="tool-section">
+                    <button class="tool-btn" data-tool="line" title="Line (L)">
+                        <svg viewBox="0 0 24 24" class="tool-icon"><line x1="5" y1="19" x2="19" y2="5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    </button>
+                    <button class="tool-btn" data-tool="rect" title="Rectangle (R)">
+                        <svg viewBox="0 0 24 24" class="tool-icon"><rect x="4" y="4" width="16" height="16" rx="1" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                    </button>
+                    <button class="tool-btn" data-tool="circle" title="Circle (C)">
+                        <svg viewBox="0 0 24 24" class="tool-icon"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                    </button>
+                    <button class="tool-btn" data-tool="rectFilled" title="Filled Rectangle (Shift+R)">
+                        <svg viewBox="0 0 24 24" class="tool-icon"><rect x="4" y="4" width="16" height="16" rx="1" fill="currentColor" opacity="0.4" stroke="currentColor" stroke-width="2"/></svg>
+                    </button>
+                    <button class="tool-btn" data-tool="circleFilled" title="Filled Circle (Shift+C)">
+                        <svg viewBox="0 0 24 24" class="tool-icon"><circle cx="12" cy="12" r="8" fill="currentColor" opacity="0.4" stroke="currentColor" stroke-width="2"/></svg>
+                    </button>
                 </div>
-
-                <div class="panel">
-                    <h3>Color & Brush</h3>
-                    <div class="input-group">
-                        <label>Color:</label>
-                        <div class="color-picker-wrapper">
-                            <input type="color" id="colorPicker" value="#000000">
-                            <span id="colorHex">#000000</span>
-                        </div>
+                <div class="tool-divider"></div>
+                <!-- Color Swatches -->
+                <div class="color-area">
+                    <div class="fg-bg-swatches">
+                        <div class="fg-swatch" id="fgSwatch" title="Foreground Color (click to change)"></div>
+                        <div class="bg-swatch" id="bgSwatch" title="Background Color (click to change)"></div>
+                        <button class="swap-btn" id="swapColorsBtn" title="Swap FG/BG (X)">
+                            <svg viewBox="0 0 12 12" class="icon-tiny"><path d="M1 4h8M7 2l2 2-2 2M11 8H3M5 6l-2 2 2 2" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
+                        </button>
                     </div>
-                    <div class="input-group">
-                        <label>Brush Size:</label>
-                        <input type="range" id="brushSize" min="1" max="32" value="1">
-                        <span id="brushSizeLabel">1</span>
-                    </div>
+                    <input type="color" id="colorPicker" value="#000000" class="hidden-picker">
+                    <span class="color-hex" id="colorHex">#000000</span>
                 </div>
-
-                <div class="panel">
-                    <h3>Zoom</h3>
-                    <input type="range" id="zoomSlider" min="1" max="16" value="16">
-                    <span id="zoomLabel">16x</span>
-                </div>
-
-                <div class="panel">
-                    <h3>Edit</h3>
-                    <button id="undoBtn" class="btn" title="Undo (Ctrl+Z)">↶ Undo</button>
-                    <button id="redoBtn" class="btn" title="Redo (Ctrl+Y)">↷ Redo</button>
-                    <button id="clearBtn" class="btn" title="Clear Canvas">Clear</button>
+                <div class="tool-divider"></div>
+                <!-- Brush Size -->
+                <div class="brush-area">
+                    <label class="mini-label">Size</label>
+                    <input type="range" id="brushSize" min="1" max="32" value="1" class="vertical-slider">
+                    <span class="brush-val" id="brushSizeLabel">1</span>
                 </div>
             </aside>
 
-            <!-- Canvas area -->
+            <!-- Canvas Area -->
             <div class="canvas-area">
-                <div class="canvas-wrapper">
+                <div class="canvas-scroll" id="canvasScroll">
                     <canvas id="pixelCanvas"></canvas>
                 </div>
-                <div class="canvas-info">
-                    <span id="pixelInfo">x: 0, y: 0</span>
+                <!-- Status Bar -->
+                <div class="status-bar">
+                    <span id="pixelInfo">0, 0</span>
+                    <span id="toolInfo">Pencil</span>
+                    <div class="zoom-controls">
+                        <button class="zoom-btn" id="zoomOutBtn" title="Zoom Out (-)">-</button>
+                        <input type="range" id="zoomSlider" min="1" max="32" value="16" class="zoom-slider">
+                        <button class="zoom-btn" id="zoomInBtn" title="Zoom In (+)">+</button>
+                    </div>
                 </div>
             </div>
 
-            <!-- Right sidebar - Layers and Frames -->
-            <aside class="right-sidebar">
-                <!-- Layers Panel -->
-                <div class="panel">
-                    <h3>Layers</h3>
-                    <div class="layers-controls">
-                        <button id="newLayerBtn" class="btn-small" title="New Layer">+ Layer</button>
-                        <button id="deleteLayerBtn" class="btn-small" title="Delete Layer">- Layer</button>
-                        <button id="duplicateLayerBtn" class="btn-small" title="Duplicate Layer">Dup</button>
+            <!-- Right Panel -->
+            <aside class="right-panel" id="rightPanel">
+                <!-- Palette Panel -->
+                <div class="panel" id="palettePanel">
+                    <div class="panel-header" data-panel="palette">
+                        <span class="panel-title">Palette</span>
+                        <span class="panel-toggle">&#9660;</span>
                     </div>
-                    <div id="layersList" class="layers-list"></div>
+                    <div class="panel-body">
+                        <div class="palette-grid" id="paletteGrid"></div>
+                    </div>
                 </div>
 
-                <!-- Frames Panel -->
-                <div class="panel">
-                    <h3>Frames</h3>
-                    <div class="frames-controls">
-                        <button id="newFrameBtn" class="btn-small" title="New Frame">+ Frame</button>
-                        <button id="deleteFrameBtn" class="btn-small" title="Delete Frame">- Frame</button>
-                        <div class="input-group">
-                            <label>FPS:</label>
-                            <input type="number" id="fpsInput" value="12" min="1" max="60">
+                <!-- Layers Panel -->
+                <div class="panel" id="layersPanel">
+                    <div class="panel-header" data-panel="layers">
+                        <span class="panel-title">Layers</span>
+                        <span class="panel-toggle">&#9660;</span>
+                    </div>
+                    <div class="panel-body">
+                        <div class="panel-toolbar">
+                            <button id="newLayerBtn" class="icon-btn" title="New Layer">
+                                <svg viewBox="0 0 16 16" class="icon"><line x1="8" y1="3" x2="8" y2="13" stroke="currentColor" stroke-width="2"/><line x1="3" y1="8" x2="13" y2="8" stroke="currentColor" stroke-width="2"/></svg>
+                            </button>
+                            <button id="duplicateLayerBtn" class="icon-btn" title="Duplicate Layer">
+                                <svg viewBox="0 0 16 16" class="icon"><rect x="1" y="3" width="9" height="9" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="5" y="1" width="9" height="9" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+                            </button>
+                            <button id="mergeLayerBtn" class="icon-btn" title="Merge Down">
+                                <svg viewBox="0 0 16 16" class="icon"><path d="M4 3h8M4 8h8M8 3v8M4 13l4-3 4 3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+                            </button>
+                            <button id="deleteLayerBtn" class="icon-btn danger" title="Delete Layer">
+                                <svg viewBox="0 0 16 16" class="icon"><path d="M3 4h10M5 4V3h6v1M6 6v6M10 6v6M4 4l1 10h6l1-10" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+                            </button>
+                        </div>
+                        <div id="layersList" class="layers-list"></div>
+                    </div>
+                </div>
+
+                <!-- Canvas Settings Panel -->
+                <div class="panel" id="canvasPanel">
+                    <div class="panel-header" data-panel="canvas">
+                        <span class="panel-title">Canvas</span>
+                        <span class="panel-toggle">&#9660;</span>
+                    </div>
+                    <div class="panel-body">
+                        <div class="canvas-size-row">
+                            <div class="size-input">
+                                <label>W</label>
+                                <input type="number" id="canvasWidth" value="32" min="8" max="512">
+                            </div>
+                            <svg viewBox="0 0 16 16" class="link-icon"><path d="M5 4v2a3 3 0 000 4v2M11 4v2a3 3 0 010 4v2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+                            <div class="size-input">
+                                <label>H</label>
+                                <input type="number" id="canvasHeight" value="32" min="8" max="512">
+                            </div>
+                            <button id="resizeCanvasBtn" class="apply-btn" title="Apply Size">&#10003;</button>
+                        </div>
+                        <div class="preset-row">
+                            <button class="preset-btn" data-size="16">16</button>
+                            <button class="preset-btn" data-size="32">32</button>
+                            <button class="preset-btn" data-size="64">64</button>
+                            <button class="preset-btn" data-size="128">128</button>
+                            <button class="preset-btn" data-size="256">256</button>
                         </div>
                     </div>
-                    <div id="framesList" class="frames-list"></div>
-                    <div class="animation-controls">
-                        <button id="playAnimationBtn" class="btn">▶ Play</button>
-                        <button id="stopAnimationBtn" class="btn">⏹ Stop</button>
+                </div>
+
+                <!-- Frames & Animation Panel -->
+                <div class="panel" id="framesPanel">
+                    <div class="panel-header" data-panel="frames">
+                        <span class="panel-title">Animation</span>
+                        <span class="panel-toggle">&#9660;</span>
+                    </div>
+                    <div class="panel-body">
+                        <div class="panel-toolbar">
+                            <button id="newFrameBtn" class="icon-btn" title="New Frame">
+                                <svg viewBox="0 0 16 16" class="icon"><line x1="8" y1="3" x2="8" y2="13" stroke="currentColor" stroke-width="2"/><line x1="3" y1="8" x2="13" y2="8" stroke="currentColor" stroke-width="2"/></svg>
+                            </button>
+                            <button id="dupFrameBtn" class="icon-btn" title="Duplicate Frame">
+                                <svg viewBox="0 0 16 16" class="icon"><rect x="1" y="3" width="9" height="9" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="5" y="1" width="9" height="9" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+                            </button>
+                            <button id="deleteFrameBtn" class="icon-btn danger" title="Delete Frame">
+                                <svg viewBox="0 0 16 16" class="icon"><path d="M3 4h10M5 4V3h6v1M6 6v6M10 6v6M4 4l1 10h6l1-10" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+                            </button>
+                            <div class="toolbar-spacer"></div>
+                            <button id="playAnimationBtn" class="icon-btn play-btn" title="Play Animation (Space)">
+                                <svg viewBox="0 0 16 16" class="icon"><polygon points="4,2 14,8 4,14" fill="currentColor"/></svg>
+                            </button>
+                            <button id="stopAnimationBtn" class="icon-btn" title="Stop Animation">
+                                <svg viewBox="0 0 16 16" class="icon"><rect x="3" y="3" width="10" height="10" fill="currentColor"/></svg>
+                            </button>
+                        </div>
+                        <div id="framesList" class="frames-list"></div>
+                        <div class="fps-row">
+                            <label>FPS</label>
+                            <input type="range" id="fpsSlider" min="1" max="60" value="12" class="fps-slider">
+                            <input type="number" id="fpsInput" value="12" min="1" max="60" class="fps-num">
+                        </div>
                     </div>
                 </div>
 
                 <!-- Onion Skin Panel -->
-                <div class="panel">
-                    <h3>Onion Skin</h3>
-                    <div class="input-group">
-                        <label>
+                <div class="panel" id="onionPanel">
+                    <div class="panel-header" data-panel="onion">
+                        <span class="panel-title">Onion Skin</span>
+                        <label class="panel-switch">
                             <input type="checkbox" id="onionSkinToggle">
-                            Enable Onion Skin
+                            <span class="switch-slider"></span>
                         </label>
                     </div>
-                    <div class="input-group">
-                        <label>Opacity:</label>
-                        <input type="range" id="onionSkinOpacity" min="0" max="100" value="50">
-                        <span id="opacityLabel">50%</span>
-                    </div>
-                    <div class="input-group">
-                        <label>Show Frames Back:</label>
-                        <input type="number" id="onionSkinBack" min="1" max="5" value="1">
-                    </div>
-                    <div class="input-group">
-                        <label>Show Frames Forward:</label>
-                        <input type="number" id="onionSkinForward" min="0" max="5" value="1">
+                    <div class="panel-body">
+                        <div class="onion-row">
+                            <label>Opacity</label>
+                            <input type="range" id="onionSkinOpacity" min="0" max="100" value="50">
+                            <span id="opacityLabel">50%</span>
+                        </div>
+                        <div class="onion-row">
+                            <label>Back</label>
+                            <input type="number" id="onionSkinBack" min="0" max="5" value="1" class="tiny-num">
+                            <label>Fwd</label>
+                            <input type="number" id="onionSkinForward" min="0" max="5" value="1" class="tiny-num">
+                        </div>
                     </div>
                 </div>
 
-                <!-- Export Panel -->
-                <div class="panel">
-                    <h3>Export</h3>
-                    <button id="exportPNGBtn" class="btn">Export PNG</button>
-                    <button id="exportGIFBtn" class="btn">Export GIF</button>
-                    <button id="exportJSONBtn" class="btn">Export Data</button>
+                <!-- Preview Mini -->
+                <div class="panel" id="previewPanel">
+                    <div class="panel-header" data-panel="preview">
+                        <span class="panel-title">Preview</span>
+                        <span class="panel-toggle">&#9660;</span>
+                    </div>
+                    <div class="panel-body preview-body">
+                        <canvas id="previewCanvas" class="preview-canvas"></canvas>
+                    </div>
                 </div>
             </aside>
         </div>
     </div>
 
-    <!-- Core modules (order matters) -->
+    <!-- Core modules -->
     <script src="core/event-bus.js"></script>
     <script src="core/color.js"></script>
     <script src="core/pixel-data.js"></script>
     <script src="core/command.js"></script>
     <script src="core/history.js"></script>
 
-    <!-- Utilities and algorithms -->
+    <!-- Utilities -->
     <script src="utils.js"></script>
     <script src="config.js"></script>
 
-    <!-- Input handlers -->
+    <!-- Input -->
     <script src="input/pointer-handler.js"></script>
     <script src="input/keyboard-handler.js"></script>
 
-    <!-- Render pipeline -->
+    <!-- Render -->
     <script src="render/compositor.js"></script>
     <script src="render/renderer.js"></script>
 
-    <!-- Data managers -->
+    <!-- Data -->
     <script src="layers.js"></script>
     <script src="frames.js"></script>
 
-    <!-- Main app (must be last) -->
+    <!-- App -->
     <script src="app.js"></script>
 </body>
 </html>

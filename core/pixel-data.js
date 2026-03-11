@@ -1,4 +1,4 @@
-// PixelData class for PixelArtPro
+// PixelData class for DarkPixel
 window.PAP = window.PAP || {};
 
 PAP.PixelData = class PixelData {

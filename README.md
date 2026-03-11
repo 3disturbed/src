@@ -1,4 +1,4 @@
-# PixelArtPro - HTML5 Canvas Pixel Editor
+# DarkPixel - HTML5 Canvas Pixel Editor
 
 A fully-featured pixel art editor built with HTML5 Canvas, featuring layers, animation frames, onion skin support, and project save/load functionality.
 
@@ -177,7 +177,7 @@ Potential features for future versions:
 
 ### File Structure
 ```
-PixelArtPro/src/
+DarkPixel/src/
 ├── index.html      # Main HTML structure
 ├── styles.css      # Styling and layout
 ├── utils.js        # Utility classes and functions
@@ -196,7 +196,7 @@ PixelArtPro/src/
 **FrameManager**: Frame collection and playback
 **AnimationPlayer**: Animation rendering engine
 **OnionSkinRenderer**: Ghost frame visualization
-**PixelArtPro**: Main application controller
+**DarkPixel**: Main application controller
 
 ## Troubleshooting
 
@@ -222,7 +222,7 @@ PixelArtPro/src/
 
 ## Credits
 
-PixelArtPro - A pixel art editor for creative pixel artists and game developers.
+DarkPixel - A pixel art editor for creative pixel artists and game developers.
 
 Built with vanilla JavaScript, HTML5 Canvas, and no dependencies.
 
