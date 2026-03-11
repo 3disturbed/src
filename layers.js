@@ -1,8 +1,9 @@
 // Layer Management System for PixelArtPro
+// Compositing now done via PAP.Compositor (render/compositor.js)
 
 class Layer {
     constructor(name, width, height, id = null) {
-        this.id = id || Date.now();
+        this.id = id || Date.now() + Math.floor(Math.random() * 1000);
         this.name = name;
         this.width = width;
         this.height = height;
@@ -10,13 +11,15 @@ class Layer {
         this.visible = true;
         this.opacity = 1;
         this.locked = false;
+        this.blendMode = 'source-over'; // Canvas globalCompositeOperation value
     }
 
     clone() {
-        const cloned = new Layer(this.name + ' copy', this.width, this.height, Date.now());
+        const cloned = new Layer(this.name + ' copy', this.width, this.height, Date.now() + Math.floor(Math.random() * 1000));
         cloned.pixelData = this.pixelData.clone();
         cloned.visible = this.visible;
         cloned.opacity = this.opacity;
+        cloned.blendMode = this.blendMode;
         return cloned;
     }
 
@@ -36,15 +39,14 @@ class Layer {
 
     resize(newWidth, newHeight) {
         const newData = new PixelData(newWidth, newHeight);
-        
-        // Copy existing data
+
         for (let y = 0; y < Math.min(this.height, newHeight); y++) {
             for (let x = 0; x < Math.min(this.width, newWidth); x++) {
                 const pixel = this.pixelData.getPixel(x, y);
                 newData.setPixel(x, y, new Color(pixel.r, pixel.g, pixel.b, pixel.a));
             }
         }
-        
+
         this.pixelData = newData;
         this.width = newWidth;
         this.height = newHeight;
@@ -59,7 +61,8 @@ class Layer {
             data: Array.from(this.pixelData.data),
             visible: this.visible,
             opacity: this.opacity,
-            locked: this.locked
+            locked: this.locked,
+            blendMode: this.blendMode
         };
     }
 
@@ -69,6 +72,7 @@ class Layer {
         layer.visible = obj.visible;
         layer.opacity = obj.opacity;
         layer.locked = obj.locked;
+        layer.blendMode = obj.blendMode || 'source-over';
         return layer;
     }
 }
@@ -79,10 +83,7 @@ class LayerManager {
         this.height = height;
         this.layers = [];
         this.activeLayerIndex = -1;
-        this.compositedCanvas = document.createElement('canvas');
-        this.compositedCanvas.width = width;
-        this.compositedCanvas.height = height;
-        
+
         // Create default layer
         this.addLayer('Background');
     }
@@ -92,20 +93,19 @@ class LayerManager {
         const layer = new Layer(layerName, this.width, this.height);
         this.layers.push(layer);
         this.setActiveLayer(this.layers.length - 1);
-        this.renderLayersList();
+        PAP.EventBus.emit('layers:changed');
         return layer;
     }
 
     deleteLayer(index) {
         if (this.layers.length === 1) {
-            alert('Cannot delete the last layer');
             return false;
         }
         this.layers.splice(index, 1);
         if (this.activeLayerIndex >= this.layers.length) {
             this.activeLayerIndex = this.layers.length - 1;
         }
-        this.renderLayersList();
+        PAP.EventBus.emit('layers:changed');
         return true;
     }
 
@@ -114,14 +114,14 @@ class LayerManager {
         const clone = layer.clone();
         this.layers.splice(index + 1, 0, clone);
         this.setActiveLayer(index + 1);
-        this.renderLayersList();
+        PAP.EventBus.emit('layers:changed');
         return clone;
     }
 
     setActiveLayer(index) {
         if (index >= 0 && index < this.layers.length) {
             this.activeLayerIndex = index;
-            this.renderLayersList();
+            PAP.EventBus.emit('layers:activeChanged', index);
         }
     }
 
@@ -131,40 +131,46 @@ class LayerManager {
 
     mergeDown(index) {
         if (index === 0 || index >= this.layers.length) return false;
-        
+
         const topLayer = this.layers[index];
         const bottomLayer = this.layers[index - 1];
-        
-        const ctx = document.createElement('canvas').getContext('2d');
-        ctx.canvas.width = this.width;
-        ctx.canvas.height = this.height;
-        
+
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = this.width;
+        tempCanvas.height = this.height;
+        const ctx = tempCanvas.getContext('2d');
+
+        const layerCanvas = document.createElement('canvas');
+        layerCanvas.width = this.width;
+        layerCanvas.height = this.height;
+        const layerCtx = layerCanvas.getContext('2d');
+
         // Draw bottom layer
-        const bottomImageData = bottomLayer.getImageData();
-        ctx.putImageData(bottomImageData, 0, 0);
-        
-        // Draw top layer with opacity
-        const topImageData = topLayer.getImageData();
+        layerCtx.putImageData(bottomLayer.getImageData(), 0, 0);
+        ctx.drawImage(layerCanvas, 0, 0);
+
+        // Draw top layer with opacity and blend mode
+        layerCtx.clearRect(0, 0, this.width, this.height);
+        layerCtx.putImageData(topLayer.getImageData(), 0, 0);
         ctx.globalAlpha = topLayer.opacity;
-        ctx.putImageData(topImageData, 0, 0);
-        
-        // Update bottom layer with merged data
+        ctx.globalCompositeOperation = topLayer.blendMode || 'source-over';
+        ctx.drawImage(layerCanvas, 0, 0);
+
         const mergedData = ctx.getImageData(0, 0, this.width, this.height);
         bottomLayer.pixelData.data.set(mergedData.data);
-        
-        // Remove top layer
+
         this.layers.splice(index, 1);
         if (this.activeLayerIndex === index) {
             this.activeLayerIndex = index - 1;
         }
-        this.renderLayersList();
+        PAP.EventBus.emit('layers:changed');
         return true;
     }
 
     toggleLayerVisibility(index) {
         if (index >= 0 && index < this.layers.length) {
             this.layers[index].visible = !this.layers[index].visible;
-            this.renderLayersList();
+            PAP.EventBus.emit('layers:changed');
         }
     }
 
@@ -173,42 +179,23 @@ class LayerManager {
         const layer = this.layers.splice(fromIndex, 1)[0];
         this.layers.splice(toIndex, 0, layer);
         this.setActiveLayer(toIndex);
-        this.renderLayersList();
+        PAP.EventBus.emit('layers:changed');
         return true;
     }
 
     resizeAllLayers(newWidth, newHeight) {
         this.width = newWidth;
         this.height = newHeight;
-        this.compositedCanvas.width = newWidth;
-        this.compositedCanvas.height = newHeight;
-        
         this.layers.forEach(layer => {
             layer.resize(newWidth, newHeight);
         });
     }
 
-    composite() {
-        const ctx = this.compositedCanvas.getContext('2d');
-        ctx.clearRect(0, 0, this.width, this.height);
-        
-        for (let i = this.layers.length - 1; i >= 0; i--) {
-            const layer = this.layers[i];
-            if (!layer.visible) continue;
-            
-            const imageData = layer.getImageData();
-            ctx.globalAlpha = layer.opacity;
-            ctx.putImageData(imageData, 0, 0);
-        }
-        ctx.globalAlpha = 1;
-        
-        return this.compositedCanvas;
-    }
-
     renderLayersList() {
         const layersList = document.getElementById('layersList');
+        if (!layersList) return;
         layersList.innerHTML = '';
-        
+
         for (let i = this.layers.length - 1; i >= 0; i--) {
             const layer = this.layers[i];
             const layerItem = document.createElement('div');
@@ -216,24 +203,24 @@ class LayerManager {
             if (i === this.activeLayerIndex) {
                 layerItem.classList.add('active');
             }
-            
+
             const visibilityToggle = document.createElement('span');
             visibilityToggle.className = 'layer-visibility';
-            visibilityToggle.textContent = layer.visible ? '👁️' : '🚫';
+            visibilityToggle.textContent = layer.visible ? '👁' : '🚫';
             visibilityToggle.title = 'Toggle visibility';
             visibilityToggle.onclick = (e) => {
                 e.stopPropagation();
                 this.toggleLayerVisibility(i);
             };
-            
+
             const nameSpan = document.createElement('span');
             nameSpan.className = 'layer-name';
             nameSpan.textContent = layer.name;
             nameSpan.title = layer.name;
-            
+
             layerItem.appendChild(visibilityToggle);
             layerItem.appendChild(nameSpan);
-            
+
             layerItem.onclick = () => this.setActiveLayer(i);
             layerItem.ondblclick = () => {
                 const newName = prompt('Rename layer:', layer.name);
@@ -242,7 +229,7 @@ class LayerManager {
                     this.renderLayersList();
                 }
             };
-            
+
             layersList.appendChild(layerItem);
         }
     }
@@ -259,7 +246,7 @@ class LayerManager {
     static fromJSON(obj) {
         const manager = new LayerManager(obj.width, obj.height);
         manager.layers = obj.layers.map(l => Layer.fromJSON(l));
-        manager.setActiveLayer(obj.activeLayerIndex || 0);
+        manager.activeLayerIndex = obj.activeLayerIndex || 0;
         return manager;
     }
 

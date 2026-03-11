@@ -1,4 +1,7 @@
 // Utility functions for PixelArtPro
+// Color and PixelData classes have moved to core/color.js and core/pixel-data.js
+
+window.PAP = window.PAP || {};
 
 class ByteBuffer {
     constructor(data = null) {
@@ -40,97 +43,11 @@ class ByteBuffer {
     }
 }
 
-class Color {
-    constructor(r, g, b, a = 255) {
-        this.r = Math.max(0, Math.min(255, r));
-        this.g = Math.max(0, Math.min(255, g));
-        this.b = Math.max(0, Math.min(255, b));
-        this.a = Math.max(0, Math.min(255, a));
-    }
+PAP.ByteBuffer = ByteBuffer;
 
-    static fromHex(hex) {
-        const r = parseInt(hex.substr(1, 2), 16);
-        const g = parseInt(hex.substr(3, 2), 16);
-        const b = parseInt(hex.substr(5, 2), 16);
-        return new Color(r, g, b);
-    }
+// Drawing algorithms - namespaced under PAP
 
-    static fromRGBA(r, g, b, a) {
-        return new Color(r, g, b, a);
-    }
-
-    toHex() {
-        return '#' + [this.r, this.g, this.b]
-            .map(x => x.toString(16).padStart(2, '0'))
-            .join('')
-            .toUpperCase();
-    }
-
-    toRGBA() {
-        return `rgba(${this.r}, ${this.g}, ${this.b}, ${this.a / 255})`;
-    }
-
-    toCSSString() {
-        return this.a === 255 
-            ? `rgb(${this.r}, ${this.g}, ${this.b})`
-            : `rgba(${this.r}, ${this.g}, ${this.b}, ${this.a / 255})`;
-    }
-
-    clone() {
-        return new Color(this.r, this.g, this.b, this.a);
-    }
-}
-
-class PixelData {
-    constructor(width, height, data = null) {
-        this.width = width;
-        this.height = height;
-        this.data = data || new Uint8ClampedArray(width * height * 4);
-    }
-
-    getPixel(x, y) {
-        const idx = (y * this.width + x) * 4;
-        return {
-            r: this.data[idx],
-            g: this.data[idx + 1],
-            b: this.data[idx + 2],
-            a: this.data[idx + 3]
-        };
-    }
-
-    setPixel(x, y, color) {
-        if (x < 0 || x >= this.width || y < 0 || y >= this.height) return;
-        const idx = (y * this.width + x) * 4;
-        this.data[idx] = color.r;
-        this.data[idx + 1] = color.g;
-        this.data[idx + 2] = color.b;
-        this.data[idx + 3] = color.a;
-    }
-
-    fill(color) {
-        for (let i = 0; i < this.data.length; i += 4) {
-            this.data[i] = color.r;
-            this.data[i + 1] = color.g;
-            this.data[i + 2] = color.b;
-            this.data[i + 3] = color.a;
-        }
-    }
-
-    clone() {
-        return new PixelData(this.width, this.height, new Uint8ClampedArray(this.data));
-    }
-
-    clear() {
-        this.data.fill(0);
-    }
-
-    getImageData() {
-        return new ImageData(this.data, this.width, this.height);
-    }
-}
-
-// Bresenham's line algorithm
-function drawLine(pixelData, x0, y0, x1, y1, color) {
+PAP.drawLine = function drawLine(pixelData, x0, y0, x1, y1, color) {
     const dx = Math.abs(x1 - x0);
     const dy = Math.abs(y1 - y0);
     const sx = x0 < x1 ? 1 : -1;
@@ -151,10 +68,9 @@ function drawLine(pixelData, x0, y0, x1, y1, color) {
             y += sy;
         }
     }
-}
+};
 
-// Draw rectangle
-function drawRect(pixelData, x0, y0, x1, y1, color, filled = false) {
+PAP.drawRect = function drawRect(pixelData, x0, y0, x1, y1, color, filled = false) {
     const minX = Math.min(x0, x1);
     const maxX = Math.max(x0, x1);
     const minY = Math.min(y0, y1);
@@ -167,7 +83,6 @@ function drawRect(pixelData, x0, y0, x1, y1, color, filled = false) {
             }
         }
     } else {
-        // Draw outline
         for (let x = minX; x <= maxX; x++) {
             pixelData.setPixel(x, minY, color);
             pixelData.setPixel(x, maxY, color);
@@ -177,21 +92,19 @@ function drawRect(pixelData, x0, y0, x1, y1, color, filled = false) {
             pixelData.setPixel(maxX, y, color);
         }
     }
-}
+};
 
-// Draw circle using Bresenham's circle algorithm
-function drawCircle(pixelData, cx, cy, radius, color, filled = false) {
+PAP.drawCircle = function drawCircle(pixelData, cx, cy, radius, color, filled = false) {
     let x = radius;
     let y = 0;
     let dec = 3 - 2 * radius;
 
     const drawCirclePoints = (cx, cy, x, y) => {
         if (filled) {
-            // Fill horizontal lines
-            drawLine(pixelData, cx - x, cy + y, cx + x, cy + y, color);
-            drawLine(pixelData, cx - x, cy - y, cx + x, cy - y, color);
-            drawLine(pixelData, cx - y, cy + x, cx + y, cy + x, color);
-            drawLine(pixelData, cx - y, cy - x, cx + y, cy - x, color);
+            PAP.drawLine(pixelData, cx - x, cy + y, cx + x, cy + y, color);
+            PAP.drawLine(pixelData, cx - x, cy - y, cx + x, cy - y, color);
+            PAP.drawLine(pixelData, cx - y, cy + x, cx + y, cy + x, color);
+            PAP.drawLine(pixelData, cx - y, cy - x, cx + y, cy - x, color);
         } else {
             pixelData.setPixel(cx + x, cy + y, color);
             pixelData.setPixel(cx - x, cy + y, color);
@@ -216,36 +129,35 @@ function drawCircle(pixelData, cx, cy, radius, color, filled = false) {
         }
         drawCirclePoints(cx, cy, x, y);
     }
-}
+};
 
-// Flood fill algorithm
-function floodFill(pixelData, x, y, newColor) {
+PAP.floodFill = function floodFill(pixelData, x, y, newColor) {
     if (x < 0 || x >= pixelData.width || y < 0 || y >= pixelData.height) return;
 
     const targetColor = pixelData.getPixel(x, y);
-    if (targetColor.r === newColor.r && 
-        targetColor.g === newColor.g && 
-        targetColor.b === newColor.b && 
+    if (targetColor.r === newColor.r &&
+        targetColor.g === newColor.g &&
+        targetColor.b === newColor.b &&
         targetColor.a === newColor.a) {
-        return; // Same color, no need to fill
+        return;
     }
 
     const queue = [[x, y]];
     const visited = new Set();
-    
+
     while (queue.length > 0) {
         const [cx, cy] = queue.shift();
         const key = `${cx},${cy}`;
-        
+
         if (visited.has(key)) continue;
         visited.add(key);
 
         if (cx < 0 || cx >= pixelData.width || cy < 0 || cy >= pixelData.height) continue;
 
         const pixel = pixelData.getPixel(cx, cy);
-        if (pixel.r !== targetColor.r || 
-            pixel.g !== targetColor.g || 
-            pixel.b !== targetColor.b || 
+        if (pixel.r !== targetColor.r ||
+            pixel.g !== targetColor.g ||
+            pixel.b !== targetColor.b ||
             pixel.a !== targetColor.a) {
             continue;
         }
@@ -257,29 +169,15 @@ function floodFill(pixelData, x, y, newColor) {
         queue.push([cx, cy + 1]);
         queue.push([cx, cy - 1]);
     }
-}
+};
 
-// Canvas utilities
-function resizeCanvasAndCenter(canvas, width, height, zoom) {
-    const scaledWidth = width * zoom;
-    const scaledHeight = height * zoom;
-    
-    canvas.width = scaledWidth;
-    canvas.height = scaledHeight;
-    
-    const canvasWrapper = document.querySelector('.canvas-wrapper');
-    canvasWrapper.style.width = Math.min(scaledWidth, window.innerWidth - 520) + 'px';
-    canvasWrapper.style.height = Math.min(scaledHeight, window.innerHeight - 100) + 'px';
-}
+// Backward compatibility - keep global function names working
+function drawLine(pixelData, x0, y0, x1, y1, color) { PAP.drawLine(pixelData, x0, y0, x1, y1, color); }
+function drawRect(pixelData, x0, y0, x1, y1, color, filled) { PAP.drawRect(pixelData, x0, y0, x1, y1, color, filled); }
+function drawCircle(pixelData, cx, cy, radius, color, filled) { PAP.drawCircle(pixelData, cx, cy, radius, color, filled); }
+function floodFill(pixelData, x, y, newColor) { PAP.floodFill(pixelData, x, y, newColor); }
 
-// Image export helpers
-function canvasToBlob(canvas) {
-    return new Promise(resolve => {
-        canvas.toBlob(blob => resolve(blob));
-    });
-}
-
-function downloadFile(blob, filename) {
+PAP.downloadFile = function downloadFile(blob, filename) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -288,4 +186,12 @@ function downloadFile(blob, filename) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-}
+};
+
+function downloadFile(blob, filename) { PAP.downloadFile(blob, filename); }
+
+PAP.canvasToBlob = function canvasToBlob(canvas) {
+    return new Promise(resolve => {
+        canvas.toBlob(blob => resolve(blob));
+    });
+};

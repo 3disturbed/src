@@ -1,10 +1,11 @@
 // Main Application Logic for PixelArtPro
+// Refactored to orchestrator pattern using EventBus, PointerHandler, KeyboardHandler, Compositor, Renderer
 
 class PixelArtPro {
     constructor() {
         this.canvas = document.getElementById('pixelCanvas');
         this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
-        
+
         // State
         this.canvasWidth = 32;
         this.canvasHeight = 32;
@@ -12,56 +13,159 @@ class PixelArtPro {
         this.currentTool = 'pencil';
         this.currentColor = new Color(0, 0, 0);
         this.brushSize = 1;
-        
+
         // Managers
         this.layerManager = new LayerManager(this.canvasWidth, this.canvasHeight);
         this.frameManager = new FrameManager(this.layerManager);
-        this.animationPlayer = new AnimationPlayer(this.frameManager, this.canvas);
+        this.compositor = new PAP.Compositor(this.canvasWidth, this.canvasHeight);
+        this.renderer = new PAP.Renderer(this.canvas);
+        this.animationPlayer = new AnimationPlayer(this.frameManager, this.canvas, this.compositor);
         this.onionSkinRenderer = new OnionSkinRenderer();
-        
-        // History for undo/redo
-        this.history = [];
-        this.historyIndex = -1;
-        this.maxHistorySteps = 50;
-        
-        // Drawing state
-        this.isDrawing = false;
-        this.startX = 0;
-        this.startY = 0;
-        this.mouseX = 0;
-        this.mouseY = 0;
-        
-        this.initializeCanvas();
-        this.bindEvents();
+
+        // Command-based history
+        this.history = new PAP.CommandHistory(50);
+        this._currentDrawCommand = null;
+
+        // Input handlers
+        this.pointerHandler = new PAP.PointerHandler(this.canvas, {
+            zoom: this.zoom,
+            canvasWidth: this.canvasWidth,
+            canvasHeight: this.canvasHeight
+        });
+        this.keyboardHandler = new PAP.KeyboardHandler();
+
+        // Drawing state (for shape preview)
+        this._mouseX = 0;
+        this._mouseY = 0;
+
+        this._initializeCanvas();
+        this._bindPointerEvents();
+        this._bindKeyboardShortcuts();
+        this._bindUIEvents();
+        this._bindEventBus();
         this.render();
     }
 
-    initializeCanvas() {
-        resizeCanvasAndCenter(this.canvas, this.canvasWidth, this.canvasHeight, this.zoom);
+    _initializeCanvas() {
+        this.renderer.resizeCanvas(this.canvasWidth, this.canvasHeight, this.zoom);
     }
 
-    bindEvents() {
+    // --- Pointer Events (replaces mouse events) ---
+
+    _bindPointerEvents() {
+        this.pointerHandler.onStrokeStart = (ctx) => {
+            // Start a draw command for undo
+            const layer = this.layerManager.getActiveLayer();
+            if (!layer) return;
+
+            this._currentDrawCommand = new PAP.DrawCommand(layer, this.currentTool);
+            this._currentDrawCommand.captureBeforeState();
+
+            this._mouseX = ctx.x;
+            this._mouseY = ctx.y;
+
+            if (this.currentTool === 'eyedropper') {
+                this._pickColor(ctx.x, ctx.y);
+            } else {
+                this._performToolAction(ctx.x, ctx.y, ctx.button, ctx.pressure);
+            }
+
+            this.render();
+        };
+
+        this.pointerHandler.onStrokeMove = (ctx) => {
+            this._mouseX = ctx.x;
+            this._mouseY = ctx.y;
+
+            // Continuous tools draw on every move
+            if (this.currentTool === 'pencil' || this.currentTool === 'eraser') {
+                this._performToolAction(ctx.x, ctx.y, 0, ctx.pressure);
+            }
+
+            this.render();
+        };
+
+        this.pointerHandler.onStrokeEnd = (ctx) => {
+            // Finalize shapes on mouse up
+            if (['line', 'rect', 'circle'].includes(this.currentTool)) {
+                this._finalizeShape(ctx.x, ctx.y);
+            }
+
+            // Capture after state and push to history
+            if (this._currentDrawCommand) {
+                const hasChanges = this._currentDrawCommand.captureAfterState();
+                if (hasChanges) {
+                    this.history.push(this._currentDrawCommand);
+                }
+                this._currentDrawCommand = null;
+            }
+
+            this.render();
+        };
+
+        this.pointerHandler.onHover = (ctx) => {
+            this._mouseX = ctx.x;
+            this._mouseY = ctx.y;
+            if (ctx.inBounds) {
+                document.getElementById('pixelInfo').textContent = `x: ${ctx.x}, y: ${ctx.y}`;
+            }
+        };
+    }
+
+    // --- Keyboard Shortcuts ---
+
+    _bindKeyboardShortcuts() {
+        const kb = this.keyboardHandler;
+
+        // Tool shortcuts
+        kb.register('p', () => this.selectTool('pencil'));
+        kb.register('e', () => this.selectTool('eraser'));
+        kb.register('b', () => this.selectTool('fill'));
+        kb.register('i', () => this.selectTool('eyedropper'));
+        kb.register('l', () => this.selectTool('line'));
+        kb.register('r', () => this.selectTool('rect'));
+        kb.register('c', () => this.selectTool('circle'));
+
+        // Edit shortcuts
+        kb.register('ctrl+z', () => this.undo());
+        kb.register('ctrl+y', () => this.redo());
+        kb.register('ctrl+shift+z', () => this.redo());
+
+        // File shortcuts
+        kb.register('ctrl+s', () => this.saveProject());
+        kb.register('ctrl+n', () => this.newProject());
+        kb.register('ctrl+o', () => document.getElementById('loadProjectInput').click());
+    }
+
+    // --- UI Event Binding ---
+
+    _bindUIEvents() {
         // Tool buttons
         document.querySelectorAll('.tool-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => this.selectTool(e.target.dataset.tool));
+            btn.addEventListener('click', (e) => {
+                const tool = e.currentTarget.dataset.tool;
+                if (tool) this.selectTool(tool);
+            });
         });
 
         // Color picker
-        document.getElementById('colorPicker').addEventListener('change', (e) => {
+        document.getElementById('colorPicker').addEventListener('input', (e) => {
             this.currentColor = Color.fromHex(e.target.value);
             document.getElementById('colorHex').textContent = this.currentColor.toHex();
         });
 
         // Brush size
-        document.getElementById('brushSize').addEventListener('change', (e) => {
+        document.getElementById('brushSize').addEventListener('input', (e) => {
             this.brushSize = parseInt(e.target.value);
             document.getElementById('brushSizeLabel').textContent = this.brushSize;
         });
 
         // Zoom
-        document.getElementById('zoomSlider').addEventListener('change', (e) => {
+        document.getElementById('zoomSlider').addEventListener('input', (e) => {
             this.zoom = parseInt(e.target.value);
-            resizeCanvasAndCenter(this.canvas, this.canvasWidth, this.canvasHeight, this.zoom);
+            document.getElementById('zoomLabel').textContent = this.zoom + 'x';
+            this.renderer.resizeCanvas(this.canvasWidth, this.canvasHeight, this.zoom);
+            this.pointerHandler.updateDimensions(this.canvasWidth, this.canvasHeight, this.zoom);
             this.render();
         });
 
@@ -77,19 +181,16 @@ class PixelArtPro {
         // Layer controls
         document.getElementById('newLayerBtn').addEventListener('click', () => {
             this.layerManager.addLayer();
-            this.saveHistory();
             this.render();
         });
 
         document.getElementById('deleteLayerBtn').addEventListener('click', () => {
             this.layerManager.deleteLayer(this.layerManager.activeLayerIndex);
-            this.saveHistory();
             this.render();
         });
 
         document.getElementById('duplicateLayerBtn').addEventListener('click', () => {
             this.layerManager.duplicateLayer(this.layerManager.activeLayerIndex);
-            this.saveHistory();
             this.render();
         });
 
@@ -125,7 +226,7 @@ class PixelArtPro {
             this.render();
         });
 
-        document.getElementById('onionSkinOpacity').addEventListener('change', (e) => {
+        document.getElementById('onionSkinOpacity').addEventListener('input', (e) => {
             this.onionSkinRenderer.opacity = parseInt(e.target.value) / 100;
             document.getElementById('opacityLabel').textContent = e.target.value + '%';
             this.render();
@@ -146,8 +247,13 @@ class PixelArtPro {
         document.getElementById('redoBtn').addEventListener('click', () => this.redo());
         document.getElementById('clearBtn').addEventListener('click', () => {
             if (confirm('Clear current layer?')) {
-                this.layerManager.getActiveLayer().clear();
-                this.saveHistory();
+                const layer = this.layerManager.getActiveLayer();
+                const cmd = new PAP.DrawCommand(layer, 'Clear');
+                cmd.captureBeforeState();
+                layer.clear();
+                if (cmd.captureAfterState()) {
+                    this.history.push(cmd);
+                }
                 this.render();
             }
         });
@@ -158,7 +264,7 @@ class PixelArtPro {
             document.getElementById('loadProjectInput').click();
         });
         document.getElementById('loadProjectInput').addEventListener('change', (e) => {
-            this.loadProject(e.target.files[0]);
+            if (e.target.files[0]) this.loadProject(e.target.files[0]);
         });
         document.getElementById('saveProjectBtn').addEventListener('click', () => this.saveProject());
 
@@ -166,25 +272,116 @@ class PixelArtPro {
         document.getElementById('exportPNGBtn').addEventListener('click', () => this.exportPNG());
         document.getElementById('exportGIFBtn').addEventListener('click', () => this.exportGIF());
         document.getElementById('exportJSONBtn').addEventListener('click', () => this.exportJSON());
-
-        // Canvas events
-        this.canvas.addEventListener('mousedown', (e) => this.onCanvasMouseDown(e));
-        this.canvas.addEventListener('mousemove', (e) => this.onCanvasMouseMove(e));
-        this.canvas.addEventListener('mouseup', (e) => this.onCanvasMouseUp(e));
-        this.canvas.addEventListener('mouseleave', (e) => this.onCanvasMouseLeave(e));
-        this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => this.handleKeyDown(e));
     }
+
+    // --- EventBus subscriptions ---
+
+    _bindEventBus() {
+        PAP.EventBus.on('layers:changed', () => {
+            this.layerManager.renderLayersList();
+            this.render();
+        });
+
+        PAP.EventBus.on('layers:activeChanged', () => {
+            this.layerManager.renderLayersList();
+        });
+
+        PAP.EventBus.on('history:undo', () => this.render());
+        PAP.EventBus.on('history:redo', () => this.render());
+    }
+
+    // --- Tool Logic ---
 
     selectTool(tool) {
         this.currentTool = tool;
         document.querySelectorAll('.tool-btn').forEach(btn => {
-            btn.classList.remove('active');
+            btn.classList.toggle('active', btn.dataset.tool === tool);
         });
-        document.querySelector(`[data-tool="${tool}"]`).classList.add('active');
     }
+
+    _performToolAction(x, y, button, pressure) {
+        const layer = this.layerManager.getActiveLayer();
+        if (!layer || layer.locked) return;
+
+        const color = button === 2 ? new Color(0, 0, 0, 0) : this.currentColor;
+
+        switch (this.currentTool) {
+            case 'pencil': {
+                for (let dy = 0; dy < this.brushSize; dy++) {
+                    for (let dx = 0; dx < this.brushSize; dx++) {
+                        layer.setPixel(x + dx, y + dy, color);
+                    }
+                }
+                break;
+            }
+
+            case 'eraser': {
+                const transparent = new Color(0, 0, 0, 0);
+                for (let dy = 0; dy < this.brushSize; dy++) {
+                    for (let dx = 0; dx < this.brushSize; dx++) {
+                        layer.setPixel(x + dx, y + dy, transparent);
+                    }
+                }
+                break;
+            }
+
+            case 'fill':
+                floodFill(layer.pixelData, x, y, color);
+                break;
+        }
+    }
+
+    _finalizeShape(endX, endY) {
+        const layer = this.layerManager.getActiveLayer();
+        if (!layer || layer.locked) return;
+
+        const startX = this.pointerHandler.startX;
+        const startY = this.pointerHandler.startY;
+
+        switch (this.currentTool) {
+            case 'line':
+                drawLine(layer.pixelData, startX, startY, endX, endY, this.currentColor);
+                break;
+
+            case 'rect':
+                drawRect(layer.pixelData, startX, startY, endX, endY, this.currentColor, false);
+                break;
+
+            case 'circle': {
+                const radius = Math.max(
+                    Math.abs(endX - startX),
+                    Math.abs(endY - startY)
+                );
+                drawCircle(layer.pixelData, startX, startY, radius, this.currentColor, false);
+                break;
+            }
+        }
+    }
+
+    _pickColor(x, y) {
+        const layer = this.layerManager.getActiveLayer();
+        if (!layer) return;
+
+        const pixel = layer.pixelData.getPixel(x, y);
+        this.currentColor = new Color(pixel.r, pixel.g, pixel.b, pixel.a);
+
+        document.getElementById('colorPicker').value = this.currentColor.toHex();
+        document.getElementById('colorHex').textContent = this.currentColor.toHex();
+    }
+
+    // --- Undo/Redo ---
+
+    undo() {
+        this.history.undo();
+        this.render();
+    }
+
+    redo() {
+        this.history.redo();
+        this.render();
+    }
+
+    // --- Canvas ---
 
     resizeCanvas(width, height) {
         this.canvasWidth = width;
@@ -193,332 +390,34 @@ class PixelArtPro {
         this.frameManager.frames.forEach(frame => {
             frame.layers.forEach(layer => layer.resize(width, height));
         });
-        resizeCanvasAndCenter(this.canvas, width, height, this.zoom);
-        this.saveHistory();
+        this.compositor.resize(width, height);
+        this.renderer.resizeCanvas(width, height, this.zoom);
+        this.pointerHandler.updateDimensions(width, height, this.zoom);
         this.render();
     }
 
-    onCanvasMouseDown(e) {
-        const rect = this.canvas.getBoundingClientRect();
-        const canvasX = Math.floor((e.clientX - rect.left) / this.zoom);
-        const canvasY = Math.floor((e.clientY - rect.top) / this.zoom);
-
-        // Clamp to canvas bounds
-        if (canvasX < 0 || canvasX >= this.canvasWidth || 
-            canvasY < 0 || canvasY >= this.canvasHeight) {
-            return;
-        }
-
-        this.isDrawing = true;
-        this.startX = canvasX;
-        this.startY = canvasY;
-        this.mouseX = canvasX;
-        this.mouseY = canvasY;
-
-        this.saveHistory();
-
-        // Handle different tools
-        if (this.currentTool !== 'eyedropper') {
-            this.performToolAction(canvasX, canvasY, e.button);
-        } else {
-            this.pickColor(canvasX, canvasY);
-        }
-
-        this.render();
-    }
-
-    onCanvasMouseMove(e) {
-        const rect = this.canvas.getBoundingClientRect();
-        const canvasX = Math.floor((e.clientX - rect.left) / this.zoom);
-        const canvasY = Math.floor((e.clientY - rect.top) / this.zoom);
-
-        // Update position info
-        if (canvasX >= 0 && canvasX < this.canvasWidth && 
-            canvasY >= 0 && canvasY < this.canvasHeight) {
-            document.getElementById('pixelInfo').textContent = 
-                `x: ${canvasX}, y: ${canvasY}`;
-        }
-
-        if (!this.isDrawing) return;
-
-        this.mouseX = canvasX;
-        this.mouseY = canvasY;
-
-        // Continuous drawing for certain tools
-        if (this.currentTool === 'pencil' || this.currentTool === 'eraser') {
-            this.performToolAction(canvasX, canvasY, 0);
-        }
-
-        this.render();
-    }
-
-    onCanvasMouseUp(e) {
-        if (!this.isDrawing) return;
-        
-        const rect = this.canvas.getBoundingClientRect();
-        const canvasX = Math.floor((e.clientX - rect.left) / this.zoom);
-        const canvasY = Math.floor((e.clientY - rect.top) / this.zoom);
-
-        // Finalize shapes
-        if (['line', 'rect', 'circle'].includes(this.currentTool)) {
-            this.finalizeShape(canvasX, canvasY);
-        }
-
-        this.isDrawing = false;
-        this.render();
-    }
-
-    onCanvasMouseLeave(e) {
-        this.isDrawing = false;
-    }
-
-    performToolAction(x, y, button) {
-        const layer = this.layerManager.getActiveLayer();
-        if (!layer) return;
-
-        const color = button === 2 ? new Color(255, 255, 255, 0) : this.currentColor;
-
-        switch (this.currentTool) {
-            case 'pencil':
-                // Draw line from last position for smooth drawing
-                drawLine(layer.pixelData, this.mouseX - this.brushSize + 1, 
-                         this.mouseY - this.brushSize + 1, x, y, color);
-                // Also draw at current position
-                for (let dy = 0; dy < this.brushSize; dy++) {
-                    for (let dx = 0; dx < this.brushSize; dx++) {
-                        layer.setPixel(x + dx, y + dy, color);
-                    }
-                }
-                break;
-
-            case 'eraser':
-                const transparent = new Color(0, 0, 0, 0);
-                for (let dy = 0; dy < this.brushSize; dy++) {
-                    for (let dx = 0; dx < this.brushSize; dx++) {
-                        layer.setPixel(x + dx, y + dy, transparent);
-                    }
-                }
-                break;
-
-            case 'fill':
-                floodFill(layer.pixelData, x, y, color);
-                this.isDrawing = false;
-                break;
-        }
-    }
-
-    finalizeShape(endX, endY) {
-        const layer = this.layerManager.getActiveLayer();
-        if (!layer) return;
-
-        // Create a temporary layer for preview
-        const tempData = layer.pixelData.clone();
-
-        switch (this.currentTool) {
-            case 'line':
-                drawLine(layer.pixelData, this.startX, this.startY, endX, endY, this.currentColor);
-                break;
-
-            case 'rect':
-                drawRect(layer.pixelData, this.startX, this.startY, endX, endY, this.currentColor, false);
-                break;
-
-            case 'circle':
-                const radius = Math.max(
-                    Math.abs(endX - this.startX),
-                    Math.abs(endY - this.startY)
-                );
-                drawCircle(layer.pixelData, this.startX, this.startY, radius, this.currentColor, false);
-                break;
-        }
-    }
-
-    pickColor(x, y) {
-        const layer = this.layerManager.getActiveLayer();
-        if (!layer) return;
-
-        const pixel = layer.pixelData.getPixel(x, y);
-        this.currentColor = new Color(pixel.r, pixel.g, pixel.b, pixel.a);
-        
-        document.getElementById('colorPicker').value = this.currentColor.toHex();
-        document.getElementById('colorHex').textContent = this.currentColor.toHex();
-    }
-
-    handleKeyDown(e) {
-        // Tool shortcuts
-        const shortcuts = {
-            'p': 'pencil',
-            'e': 'eraser',
-            'b': 'fill',
-            'i': 'eyedropper',
-            'l': 'line',
-            'r': 'rect',
-            'c': 'circle',
-            'z': () => { if (e.ctrlKey) { e.ctrlKey && e.shiftKey ? this.redo() : this.undo(); } },
-            'y': () => { if (e.ctrlKey) this.redo(); }
-        };
-
-        if (shortcuts[e.key.toLowerCase()]) {
-            const action = shortcuts[e.key.toLowerCase()];
-            if (typeof action === 'string') {
-                this.selectTool(action);
-                e.preventDefault();
-            } else if (typeof action === 'function') {
-                action();
-                e.preventDefault();
-            }
-        }
-    }
-
-    saveHistory() {
-        // Remove any redo history after current point
-        this.history.splice(this.historyIndex + 1);
-
-        // Save current state
-        const state = {
-            canvasWidth: this.canvasWidth,
-            canvasHeight: this.canvasHeight,
-            layers: this.layerManager.toJSON(),
-            frames: this.frameManager.toJSON()
-        };
-
-        this.history.push(state);
-
-        // Limit history
-        if (this.history.length > this.maxHistorySteps) {
-            this.history.shift();
-        } else {
-            this.historyIndex++;
-        }
-    }
-
-    undo() {
-        if (this.historyIndex > 0) {
-            this.historyIndex--;
-            this.restoreState(this.history[this.historyIndex]);
-            this.render();
-        }
-    }
-
-    redo() {
-        if (this.historyIndex < this.history.length - 1) {
-            this.historyIndex++;
-            this.restoreState(this.history[this.historyIndex]);
-            this.render();
-        }
-    }
-
-    restoreState(state) {
-        this.canvasWidth = state.canvasWidth;
-        this.canvasHeight = state.canvasHeight;
-        this.layerManager = LayerManager.fromJSON(state.layers);
-        this.frameManager = FrameManager.fromJSON(state.frames, this.layerManager);
-        resizeCanvasAndCenter(this.canvas, this.canvasWidth, this.canvasHeight, this.zoom);
-    }
+    // --- Render ---
 
     render() {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        
-        // Draw checkerboard background for transparency
-        this.drawCheckerboard();
-        
-        // Draw composited layers
-        const compositedCanvas = this.layerManager.composite();
-        this.ctx.drawImage(compositedCanvas, 0, 0);
-
-        // Draw grid if zoomed in
-        if (this.zoom > 4) {
-            this.drawGrid();
-        }
-
-        // Draw onion skin
-        this.onionSkinRenderer.renderOnionSkin(
-            this.canvas, this.ctx, this.frameManager, 
-            this.layerManager, this.zoom
-        );
-
-        // Draw preview shapes while drawing
-        if (this.isDrawing && ['line', 'rect', 'circle'].includes(this.currentTool)) {
-            this.drawShapePreview();
-        }
+        this.renderer.render({
+            canvasWidth: this.canvasWidth,
+            canvasHeight: this.canvasHeight,
+            zoom: this.zoom,
+            layerManager: this.layerManager,
+            frameManager: this.frameManager,
+            onionSkinRenderer: this.onionSkinRenderer,
+            compositor: this.compositor,
+            isDrawing: this.pointerHandler.isDrawing,
+            currentTool: this.currentTool,
+            startX: this.pointerHandler.startX,
+            startY: this.pointerHandler.startY,
+            mouseX: this._mouseX,
+            mouseY: this._mouseY,
+            currentColor: this.currentColor
+        });
     }
 
-    drawCheckerboard() {
-        const squareSize = 4;
-        const color1 = '#111';
-        const color2 = '#222';
-
-        for (let y = 0; y < this.canvas.height; y += squareSize) {
-            for (let x = 0; x < this.canvas.width; x += squareSize) {
-                this.ctx.fillStyle = ((x / squareSize + y / squareSize) % 2 === 0) ? color1 : color2;
-                this.ctx.fillRect(x, y, squareSize, squareSize);
-            }
-        }
-    }
-
-    drawGrid() {
-        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-        this.ctx.lineWidth = 1;
-
-        // Vertical lines
-        for (let x = 0; x <= this.canvas.width; x += this.zoom) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(x, 0);
-            this.ctx.lineTo(x, this.canvas.height);
-            this.ctx.stroke();
-        }
-
-        // Horizontal lines
-        for (let y = 0; y <= this.canvas.height; y += this.zoom) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(0, y);
-            this.ctx.lineTo(this.canvas.width, y);
-            this.ctx.stroke();
-        }
-    }
-
-    drawShapePreview() {
-        // Draw preview of shape being drawn
-        this.ctx.strokeStyle = this.currentColor.toCSSString();
-        this.ctx.globalAlpha = 0.5;
-
-        switch (this.currentTool) {
-            case 'line':
-                this.ctx.beginPath();
-                this.ctx.moveTo(this.startX * this.zoom, this.startY * this.zoom);
-                this.ctx.lineTo(this.mouseX * this.zoom, this.mouseY * this.zoom);
-                this.ctx.stroke();
-                break;
-
-            case 'rect':
-                const w = (this.mouseX - this.startX) * this.zoom;
-                const h = (this.mouseY - this.startY) * this.zoom;
-                this.ctx.strokeRect(
-                    this.startX * this.zoom,
-                    this.startY * this.zoom,
-                    w, h
-                );
-                break;
-
-            case 'circle':
-                const radius = Math.max(
-                    Math.abs(this.mouseX - this.startX),
-                    Math.abs(this.mouseY - this.startY)
-                ) * this.zoom;
-                this.ctx.beginPath();
-                this.ctx.arc(
-                    this.startX * this.zoom,
-                    this.startY * this.zoom,
-                    radius,
-                    0,
-                    Math.PI * 2
-                );
-                this.ctx.stroke();
-                break;
-        }
-
-        this.ctx.globalAlpha = 1;
-    }
+    // --- Project I/O ---
 
     newProject() {
         if (confirm('Create a new project? Unsaved changes will be lost.')) {
@@ -526,19 +425,21 @@ class PixelArtPro {
             this.canvasHeight = 32;
             this.layerManager = new LayerManager(32, 32);
             this.frameManager = new FrameManager(this.layerManager);
-            this.history = [];
-            this.historyIndex = -1;
-            this.saveHistory();
+            this.compositor.resize(32, 32);
+            this.animationPlayer.frameManager = this.frameManager;
+            this.history.clear();
+
             document.getElementById('canvasWidth').value = 32;
             document.getElementById('canvasHeight').value = 32;
-            resizeCanvasAndCenter(this.canvas, 32, 32, this.zoom);
+            this.renderer.resizeCanvas(32, 32, this.zoom);
+            this.pointerHandler.updateDimensions(32, 32, this.zoom);
             this.render();
         }
     }
 
     saveProject() {
         const projectData = {
-            version: '1.0',
+            version: '2.0',
             timestamp: new Date().toISOString(),
             canvasWidth: this.canvasWidth,
             canvasHeight: this.canvasHeight,
@@ -565,14 +466,16 @@ class PixelArtPro {
                 this.layerManager = LayerManager.fromJSON(projectData.layerManager);
                 this.frameManager = FrameManager.fromJSON(projectData.frameManager, this.layerManager);
                 this.animationPlayer.frameManager = this.frameManager;
-                
+                this.compositor.resize(this.canvasWidth, this.canvasHeight);
+
                 document.getElementById('canvasWidth').value = this.canvasWidth;
                 document.getElementById('canvasHeight').value = this.canvasHeight;
-                resizeCanvasAndCenter(this.canvas, this.canvasWidth, this.canvasHeight, this.zoom);
-                
-                this.history = [];
-                this.historyIndex = -1;
-                this.saveHistory();
+                this.renderer.resizeCanvas(this.canvasWidth, this.canvasHeight, this.zoom);
+                this.pointerHandler.updateDimensions(this.canvasWidth, this.canvasHeight, this.zoom);
+
+                this.history.clear();
+                this.layerManager.renderLayersList();
+                this.frameManager.renderFramesList();
                 this.render();
             } catch (err) {
                 alert('Error loading project: ' + err.message);
@@ -581,9 +484,11 @@ class PixelArtPro {
         reader.readAsText(file);
     }
 
+    // --- Export ---
+
     exportPNG() {
-        const compositedCanvas = this.layerManager.composite();
-        compositedCanvas.toBlob(blob => {
+        const composited = this.compositor.composite(this.layerManager.layers);
+        composited.toBlob(blob => {
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
             downloadFile(blob, `pixelart-${timestamp}.png`);
         });
@@ -607,13 +512,12 @@ class PixelArtPro {
     }
 
     exportGIF() {
-        alert('GIF export requires an external library. Use "Export PNG" for single frame export.');
-        // Note: Implement with a library like gif.js for full GIF support
+        alert('GIF export coming in Phase 6. Use "Export PNG" for single frame export.');
     }
 }
 
 // Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     window.pixelArtPro = new PixelArtPro();
-    console.log('PixelArtPro initialized');
+    console.log('PixelArtPro v2.0 initialized (Phase 1: Foundation)');
 });

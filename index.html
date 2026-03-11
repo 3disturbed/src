@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>PixelArtPro - Canvas Pixel Editor</title>
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -12,9 +12,9 @@
         <header class="header">
             <h1>PixelArtPro</h1>
             <div class="file-menu">
-                <button id="newProjectBtn" class="btn" title="New Project">New</button>
-                <button id="openProjectBtn" class="btn" title="Open Project">Open</button>
-                <button id="saveProjectBtn" class="btn" title="Save Project">Save</button>
+                <button id="newProjectBtn" class="btn" title="New Project (Ctrl+N)">New</button>
+                <button id="openProjectBtn" class="btn" title="Open Project (Ctrl+O)">Open</button>
+                <button id="saveProjectBtn" class="btn" title="Save Project (Ctrl+S)">Save</button>
                 <input type="file" id="loadProjectInput" style="display: none;" accept=".pixelart">
             </div>
         </header>
@@ -73,8 +73,8 @@
 
                 <div class="panel">
                     <h3>Edit</h3>
-                    <button id="undoBtn" class="btn" title="Undo">↶ Undo</button>
-                    <button id="redoBtn" class="btn" title="Redo">↷ Redo</button>
+                    <button id="undoBtn" class="btn" title="Undo (Ctrl+Z)">↶ Undo</button>
+                    <button id="redoBtn" class="btn" title="Redo (Ctrl+Y)">↷ Redo</button>
                     <button id="clearBtn" class="btn" title="Clear Canvas">Clear</button>
                 </div>
             </aside>
@@ -155,9 +155,30 @@
         </div>
     </div>
 
+    <!-- Core modules (order matters) -->
+    <script src="core/event-bus.js"></script>
+    <script src="core/color.js"></script>
+    <script src="core/pixel-data.js"></script>
+    <script src="core/command.js"></script>
+    <script src="core/history.js"></script>
+
+    <!-- Utilities and algorithms -->
     <script src="utils.js"></script>
+    <script src="config.js"></script>
+
+    <!-- Input handlers -->
+    <script src="input/pointer-handler.js"></script>
+    <script src="input/keyboard-handler.js"></script>
+
+    <!-- Render pipeline -->
+    <script src="render/compositor.js"></script>
+    <script src="render/renderer.js"></script>
+
+    <!-- Data managers -->
     <script src="layers.js"></script>
     <script src="frames.js"></script>
+
+    <!-- Main app (must be last) -->
     <script src="app.js"></script>
 </body>
 </html>
