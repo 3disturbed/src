@@ -48,6 +48,19 @@ class DarkPixel {
             zoom: this.zoom, canvasWidth: this.canvasWidth, canvasHeight: this.canvasHeight
         });
         this.keyboardHandler = new PAP.KeyboardHandler();
+
+        // Gesture handler for pinch-to-zoom and wheel zoom
+        const canvasScroll = document.getElementById('canvasScroll');
+        this.gestureHandler = new PAP.GestureHandler(canvasScroll || this.canvas, {
+            currentZoom: this.zoom,
+            zoomMin: 1,
+            zoomMax: 32,
+            onZoom: (newZoom) => {
+                this.zoom = newZoom;
+                this._applyZoom();
+            }
+        });
+
         this._mouseX = 0;
         this._mouseY = 0;
 
@@ -257,6 +270,7 @@ class DarkPixel {
         if (display) display.textContent = this.zoom + 'x';
         this.renderer.resizeCanvas(this.canvasWidth, this.canvasHeight, this.zoom);
         this.pointerHandler.updateDimensions(this.canvasWidth, this.canvasHeight, this.zoom);
+        if (this.gestureHandler) this.gestureHandler.updateZoom(this.zoom);
         this.render();
     }
 

@@ -339,18 +339,40 @@ input[type="range"]::-moz-range-thumb {
 ::-webkit-scrollbar-thumb:hover { background: var(--bg-300); }
 
 /* ===== Responsive ===== */
+
+/* Tablet (768-1024px) — larger tap targets */
+@media (max-width: 1024px) {
+    .menu-btn { padding: 8px 10px; font-size: 12px; min-height: 36px; }
+    .menu-btn .icon { width: 18px; height: 18px; }
+    .tool-btn { width: 48px; height: 44px; }
+    .tool-icon { width: 24px; height: 24px; }
+    .icon-btn { width: 36px; height: 36px; }
+    .icon-btn .icon { width: 18px; height: 18px; }
+    .toolbar { width: 58px; padding: 8px 5px; }
+    .zoom-btn { width: 28px; height: 28px; font-size: 16px; }
+    .preset-btn { padding: 6px 0; font-size: 11px; }
+    .apply-btn { width: 36px; height: 36px; font-size: 16px; }
+    .fg-swatch, .bg-swatch { width: 30px; height: 30px; }
+    .fg-bg-swatches { width: 44px; height: 44px; }
+    .swap-btn { width: 18px; height: 18px; }
+}
+
 @media (max-width: 900px) {
     .right-panel { width: 220px; }
     .menu-btn span { display: none; }
 }
+
 @media (max-width: 640px) {
     .workspace { flex-direction: column; }
-    .toolbar { flex-direction: row; width: 100%; height: 48px; overflow-x: auto; overflow-y: hidden; border-right: none; border-bottom: 1px solid var(--border-subtle); }
+    .toolbar { flex-direction: row; width: 100%; height: 54px; overflow-x: auto; overflow-y: hidden; border-right: none; border-bottom: 1px solid var(--border-subtle); }
     .tool-section { flex-direction: row; }
-    .tool-divider { width: 1px; height: 32px; margin: 0 4px; }
+    .tool-divider { width: 1px; height: 36px; margin: 0 4px; }
+    .tool-btn { width: 44px; height: 44px; }
     .right-panel { width: 100%; max-height: 40vh; flex-direction: row; flex-wrap: wrap; }
     .right-panel .panel { flex: 1; min-width: 200px; }
     .brush-area { flex-direction: row; }
     .vertical-slider { writing-mode: horizontal-tb; direction: ltr; width: 60px; height: 20px; }
     .color-area { flex-direction: row; }
+    .menubar { height: 44px; }
+    .menu-btn { padding: 8px 6px; min-height: 38px; }
 }

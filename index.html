@@ -11,7 +11,7 @@
         <!-- Top Menu Bar -->
         <header class="menubar">
             <div class="menubar-left">
-                <span class="app-logo">PAP</span>
+                <span class="app-logo">DarkPixel</span>
                 <div class="menu-group">
                     <button id="newProjectBtn" class="menu-btn" title="New Project (Ctrl+N)">
                         <svg viewBox="0 0 16 16" class="icon"><path d="M2 1h8l4 4v10H2V1zm8 0v4h4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
@@ -29,20 +29,20 @@
                 </div>
                 <div class="menu-separator"></div>
                 <div class="menu-group">
-                    <button id="undoBtn" class="menu-btn" title="Undo (Ctrl+Z)">
-                        <svg viewBox="0 0 16 16" class="icon"><path d="M5 4L1 8l4 4M1 8h10a4 4 0 010 0" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
-                    </button>
-                    <button id="redoBtn" class="menu-btn" title="Redo (Ctrl+Y)">
-                        <svg viewBox="0 0 16 16" class="icon"><path d="M11 4l4 4-4 4M15 8H5a4 4 0 000 0" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
-                    </button>
-                </div>
-                <div class="menu-separator"></div>
-                <div class="menu-group">
                     <button id="gridToggleBtn" class="menu-btn toggle-btn active" title="Toggle Grid (G)">
                         <svg viewBox="0 0 16 16" class="icon"><path d="M0 5.5h16M0 10.5h16M5.5 0v16M10.5 0v16" fill="none" stroke="currentColor" stroke-width="1"/></svg>
                     </button>
                     <button id="mirrorToggleBtn" class="menu-btn toggle-btn" title="Mirror Mode (M)">
                         <svg viewBox="0 0 16 16" class="icon"><path d="M8 1v14M3 4l-1 8h4M13 4l1 8h-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+                    </button>
+                </div>
+                <div class="menu-separator"></div>
+                <div class="menu-group">
+                    <button id="undoBtn" class="menu-btn" title="Undo (Ctrl+Z)">
+                        <svg viewBox="0 0 16 16" class="icon"><path d="M5 4L1 8l4 4M1 8h10a4 4 0 010 0" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+                    </button>
+                    <button id="redoBtn" class="menu-btn" title="Redo (Ctrl+Y)">
+                        <svg viewBox="0 0 16 16" class="icon"><path d="M11 4l4 4-4 4M15 8H5a4 4 0 000 0" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
                     </button>
                 </div>
             </div>
@@ -296,6 +296,7 @@
     <!-- Input -->
     <script src="input/pointer-handler.js"></script>
     <script src="input/keyboard-handler.js"></script>
+    <script src="input/gesture-handler.js"></script>
 
     <!-- Render -->
     <script src="render/compositor.js"></script>
