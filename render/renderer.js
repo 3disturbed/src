@@ -32,7 +32,9 @@ PAP.Renderer = class Renderer {
             mirrorEnabled,
             brushSize,
             lassoPoints,
-            lassoSelection
+            lassoSelection,
+            moveFloating,
+            moveOffset
         } = state;
 
         const ctx = this.ctx;
@@ -69,7 +71,12 @@ PAP.Renderer = class Renderer {
             this._drawShapePreview(startX, startY, mouseX, mouseY, zoom, currentTool, currentColor);
         }
 
-        // 7. Lasso preview (while drawing) or selection (marching ants)
+        // 7. Floating move pixels
+        if (moveFloating) {
+            this._drawFloatingPixels(moveFloating, moveOffset || { x: 0, y: 0 }, zoom);
+        }
+
+        // 8. Lasso preview (while drawing) or selection (marching ants)
         if (isDrawing && lassoPoints && lassoPoints.length >= 2) {
             this._drawLassoPreview(lassoPoints, zoom, currentTool, currentColor);
         }
@@ -77,7 +84,7 @@ PAP.Renderer = class Renderer {
             this._drawMarchingAnts(lassoSelection, zoom);
         }
 
-        // 8. Brush cursor preview (when not drawing shapes)
+        // 10. Brush cursor preview (when not drawing shapes)
         if (mouseX !== undefined && mouseY !== undefined && !isDrawing) {
             this._drawBrushCursor(mouseX, mouseY, zoom, brushSize || 1, canvasWidth, canvasHeight);
         }
@@ -271,6 +278,34 @@ PAP.Renderer = class Renderer {
         }
 
         ctx.globalAlpha = 1;
+    }
+
+    _drawFloatingPixels(floating, offset, zoom) {
+        const ctx = this.ctx;
+        const fx = (floating.x + offset.x) * zoom;
+        const fy = (floating.y + offset.y) * zoom;
+        const fw = floating.width;
+        const fh = floating.height;
+
+        // Create temporary canvas with the floating pixel data
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = fw;
+        tempCanvas.height = fh;
+        const tCtx = tempCanvas.getContext('2d');
+        const imgData = new ImageData(new Uint8ClampedArray(floating.data), fw, fh);
+        tCtx.putImageData(imgData, 0, 0);
+
+        // Draw scaled to match zoom
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(tempCanvas, 0, 0, fw, fh, fx, fy, fw * zoom, fh * zoom);
+
+        // Draw a dashed border around the floating region
+        ctx.save();
+        ctx.strokeStyle = 'rgba(100, 200, 255, 0.7)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.strokeRect(fx + 0.5, fy + 0.5, fw * zoom, fh * zoom);
+        ctx.restore();
     }
 
     _drawLassoPreview(points, zoom, tool, color) {

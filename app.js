@@ -68,6 +68,11 @@ class DarkPixel {
         this._lassoPoints = [];
         this._lassoSelection = null; // stored selection polygon after lasso completes
 
+        // Move tool state
+        this._moveFloating = null;  // { imageData, x, y, width, height } - lifted pixels
+        this._moveDragStart = null; // { x, y } - where the drag started
+        this._moveOffset = { x: 0, y: 0 }; // current drag offset
+
         this._initializeCanvas();
         this._bindPointerEvents();
         this._bindKeyboardShortcuts();
@@ -159,8 +164,11 @@ class DarkPixel {
                 this.currentColor = this.fgColor;
             }
 
+            // Move tool: begin drag
+            if (this.currentTool === 'move') {
+                this._beginMove(ctx.x, ctx.y);
             // Lasso tools: start collecting points
-            if (this.currentTool === 'lasso' || this.currentTool === 'lassoFill') {
+            } else if (this.currentTool === 'lasso' || this.currentTool === 'lassoFill') {
                 this._lassoPoints = [{ x: ctx.x, y: ctx.y }];
                 this._lassoSelection = null;
             } else if (this.currentTool === 'eyedropper') {
@@ -175,7 +183,9 @@ class DarkPixel {
             this._mouseX = ctx.x;
             this._mouseY = ctx.y;
 
-            if (this.currentTool === 'lasso' || this.currentTool === 'lassoFill') {
+            if (this.currentTool === 'move') {
+                this._dragMove(ctx.x, ctx.y);
+            } else if (this.currentTool === 'lasso' || this.currentTool === 'lassoFill') {
                 // Add point if it moved to a new pixel
                 const last = this._lassoPoints[this._lassoPoints.length - 1];
                 if (last && (last.x !== ctx.x || last.y !== ctx.y)) {
@@ -188,7 +198,9 @@ class DarkPixel {
         };
 
         this.pointerHandler.onStrokeEnd = (ctx) => {
-            if (this.currentTool === 'lasso' || this.currentTool === 'lassoFill') {
+            if (this.currentTool === 'move') {
+                this._endMove();
+            } else if (this.currentTool === 'lasso' || this.currentTool === 'lassoFill') {
                 this._finalizeLasso();
             } else if (['line', 'rect', 'circle', 'rectFilled', 'circleFilled'].includes(this.currentTool)) {
                 this._finalizeShape(ctx.x, ctx.y);
@@ -232,6 +244,7 @@ class DarkPixel {
         kb.register('shift+c', () => this.selectTool('circleFilled'));
         kb.register('s', () => this.selectTool('lasso'));
         kb.register('shift+s', () => this.selectTool('lassoFill'));
+        kb.register('v', () => this.selectTool('move'));
 
         // Lasso selection actions
         kb.register('delete', () => this._lassoDeleteSelection());
@@ -459,10 +472,16 @@ class DarkPixel {
     // --- Tools ---
 
     selectTool(tool) {
-        // Clear lasso selection when switching away from lasso tools
-        if (this.currentTool !== tool && (this.currentTool === 'lasso' || this.currentTool === 'lassoFill')) {
+        // Stamp any floating move pixels before switching
+        if (this._moveFloating && tool !== 'move') {
+            this._stampFloating();
+        }
+        // Clear lasso selection when switching away from lasso/move tools
+        const lassoTools = ['lasso', 'lassoFill', 'move'];
+        if (!lassoTools.includes(tool) && lassoTools.includes(this.currentTool)) {
             this._lassoSelection = null;
             this._lassoPoints = [];
+            this._stopMarchingAnts();
         }
         this.currentTool = tool;
         document.querySelectorAll('.tool-btn').forEach(btn => {
@@ -470,7 +489,7 @@ class DarkPixel {
         });
         const toolInfo = document.getElementById('toolInfo');
         if (toolInfo) {
-            const names = { pencil:'Pencil', eraser:'Eraser', fill:'Fill', eyedropper:'Eyedropper', line:'Line', rect:'Rectangle', circle:'Circle', rectFilled:'Filled Rect', circleFilled:'Filled Circle', lasso:'Lasso', lassoFill:'Lasso Fill' };
+            const names = { pencil:'Pencil', eraser:'Eraser', fill:'Fill', eyedropper:'Eyedropper', line:'Line', rect:'Rectangle', circle:'Circle', rectFilled:'Filled Rect', circleFilled:'Filled Circle', lasso:'Lasso', lassoFill:'Lasso Fill', move:'Move' };
             toolInfo.textContent = names[tool] || tool;
         }
     }
@@ -622,6 +641,195 @@ class DarkPixel {
     _clearLassoSelection() {
         this._lassoSelection = null;
         this._lassoPoints = [];
+        this._moveFloating = null;
+        this._stopMarchingAnts();
+        this.render();
+    }
+
+    // --- Move Tool ---
+
+    _beginMove(x, y) {
+        const layer = this.layerManager.getActiveLayer();
+        if (!layer || layer.locked) return;
+
+        this._moveDragStart = { x, y };
+        this._moveOffset = { x: 0, y: 0 };
+
+        // If we have a lasso selection and no floating pixels yet, lift them
+        if (this._lassoSelection && !this._moveFloating) {
+            // Capture full layer state for undo
+            this._moveCommand = new PAP.DrawCommand(layer, 'move');
+            this._moveCommand.captureBeforeState();
+            this._liftSelection(layer);
+        }
+        // If no selection, move entire layer content
+        if (!this._moveFloating && !this._lassoSelection) {
+            this._moveCommand = new PAP.DrawCommand(layer, 'move');
+            this._moveCommand.captureBeforeState();
+            this._liftEntireLayer(layer);
+        }
+    }
+
+    _liftSelection(layer) {
+        const pts = this._lassoSelection;
+        if (!pts || pts.length < 3) return;
+
+        // Find bounding box of selection
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (const p of pts) {
+            if (p.x < minX) minX = p.x;
+            if (p.y < minY) minY = p.y;
+            if (p.x > maxX) maxX = p.x;
+            if (p.y > maxY) maxY = p.y;
+        }
+        minX = Math.max(0, Math.floor(minX));
+        minY = Math.max(0, Math.floor(minY));
+        maxX = Math.min(this.canvasWidth - 1, Math.ceil(maxX));
+        maxY = Math.min(this.canvasHeight - 1, Math.ceil(maxY));
+        const w = maxX - minX + 1;
+        const h = maxY - minY + 1;
+
+        // Build a mask from the polygon
+        const mask = new Uint8Array(w * h);
+        for (let py = 0; py < h; py++) {
+            const scanY = minY + py;
+            const intersections = [];
+            for (let i = 0; i < pts.length; i++) {
+                const j = (i + 1) % pts.length;
+                const yi = pts[i].y, yj = pts[j].y;
+                const xi = pts[i].x, xj = pts[j].x;
+                if ((yi <= scanY && yj > scanY) || (yj <= scanY && yi > scanY)) {
+                    const t = (scanY - yi) / (yj - yi);
+                    intersections.push(xi + t * (xj - xi));
+                }
+            }
+            intersections.sort((a, b) => a - b);
+            for (let k = 0; k < intersections.length - 1; k += 2) {
+                const xStart = Math.max(0, Math.ceil(intersections[k]) - minX);
+                const xEnd = Math.min(w - 1, Math.floor(intersections[k + 1]) - minX);
+                for (let px = xStart; px <= xEnd; px++) {
+                    mask[py * w + px] = 1;
+                }
+            }
+        }
+
+        // Copy masked pixels to floating buffer, clear source
+        const floatData = new Uint8ClampedArray(w * h * 4);
+        const pd = layer.pixelData;
+        for (let py = 0; py < h; py++) {
+            for (let px = 0; px < w; px++) {
+                if (!mask[py * w + px]) continue;
+                const sx = minX + px, sy = minY + py;
+                if (sx < 0 || sx >= pd.width || sy < 0 || sy >= pd.height) continue;
+                const srcIdx = (sy * pd.width + sx) * 4;
+                const dstIdx = (py * w + px) * 4;
+                floatData[dstIdx] = pd.data[srcIdx];
+                floatData[dstIdx + 1] = pd.data[srcIdx + 1];
+                floatData[dstIdx + 2] = pd.data[srcIdx + 2];
+                floatData[dstIdx + 3] = pd.data[srcIdx + 3];
+                // Clear source
+                pd.data[srcIdx + 3] = 0;
+                pd.data[srcIdx] = 0;
+                pd.data[srcIdx + 1] = 0;
+                pd.data[srcIdx + 2] = 0;
+            }
+        }
+
+        this._moveFloating = { data: floatData, x: minX, y: minY, width: w, height: h };
+    }
+
+    _liftEntireLayer(layer) {
+        const pd = layer.pixelData;
+        // Find content bounds
+        let minX = pd.width, minY = pd.height, maxX = -1, maxY = -1;
+        for (let y = 0; y < pd.height; y++) {
+            for (let x = 0; x < pd.width; x++) {
+                const idx = (y * pd.width + x) * 4;
+                if (pd.data[idx + 3] > 0) {
+                    if (x < minX) minX = x;
+                    if (x > maxX) maxX = x;
+                    if (y < minY) minY = y;
+                    if (y > maxY) maxY = y;
+                }
+            }
+        }
+        if (maxX < 0) return; // empty layer
+
+        const w = maxX - minX + 1;
+        const h = maxY - minY + 1;
+        const floatData = new Uint8ClampedArray(w * h * 4);
+
+        for (let py = 0; py < h; py++) {
+            for (let px = 0; px < w; px++) {
+                const sx = minX + px, sy = minY + py;
+                const srcIdx = (sy * pd.width + sx) * 4;
+                const dstIdx = (py * w + px) * 4;
+                floatData[dstIdx] = pd.data[srcIdx];
+                floatData[dstIdx + 1] = pd.data[srcIdx + 1];
+                floatData[dstIdx + 2] = pd.data[srcIdx + 2];
+                floatData[dstIdx + 3] = pd.data[srcIdx + 3];
+                pd.data[srcIdx] = 0;
+                pd.data[srcIdx + 1] = 0;
+                pd.data[srcIdx + 2] = 0;
+                pd.data[srcIdx + 3] = 0;
+            }
+        }
+
+        this._moveFloating = { data: floatData, x: minX, y: minY, width: w, height: h };
+    }
+
+    _dragMove(x, y) {
+        if (!this._moveDragStart || !this._moveFloating) return;
+        this._moveOffset = {
+            x: x - this._moveDragStart.x,
+            y: y - this._moveDragStart.y
+        };
+    }
+
+    _endMove() {
+        if (!this._moveFloating) return;
+
+        // Apply offset to floating position
+        this._moveFloating.x += this._moveOffset.x;
+        this._moveFloating.y += this._moveOffset.y;
+        this._moveOffset = { x: 0, y: 0 };
+        this._moveDragStart = null;
+
+        // Stamp the floating pixels
+        this._stampFloating();
+    }
+
+    _stampFloating() {
+        if (!this._moveFloating) return;
+        const layer = this.layerManager.getActiveLayer();
+        if (!layer) return;
+
+        const f = this._moveFloating;
+        const pd = layer.pixelData;
+
+        for (let py = 0; py < f.height; py++) {
+            for (let px = 0; px < f.width; px++) {
+                const dstIdx = (py * f.width + px) * 4;
+                if (f.data[dstIdx + 3] === 0) continue;
+                const dx = f.x + px, dy = f.y + py;
+                if (dx < 0 || dx >= pd.width || dy < 0 || dy >= pd.height) continue;
+                const srcIdx = (dy * pd.width + dx) * 4;
+                pd.data[srcIdx] = f.data[dstIdx];
+                pd.data[srcIdx + 1] = f.data[dstIdx + 1];
+                pd.data[srcIdx + 2] = f.data[dstIdx + 2];
+                pd.data[srcIdx + 3] = f.data[dstIdx + 3];
+            }
+        }
+
+        // Commit undo command
+        if (this._moveCommand) {
+            const hasChanges = this._moveCommand.captureAfterState();
+            if (hasChanges) this.history.push(this._moveCommand);
+            this._moveCommand = null;
+        }
+
+        this._moveFloating = null;
+        this._lassoSelection = null;
         this._stopMarchingAnts();
         this.render();
     }
@@ -694,7 +902,9 @@ class DarkPixel {
             mirrorEnabled: this.mirrorEnabled,
             brushSize: this.brushSize,
             lassoPoints: this._lassoPoints,
-            lassoSelection: this._lassoSelection
+            lassoSelection: this._lassoSelection,
+            moveFloating: this._moveFloating,
+            moveOffset: this._moveOffset
         });
 
         // Update preview canvas
