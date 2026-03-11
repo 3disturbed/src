@@ -8,6 +8,8 @@ PAP.Renderer = class Renderer {
 
         this._checkerboardPattern = null;
         this._checkerboardSize = 0;
+        this._marchingAntsOffset = 0;
+        this._marchingAntsInterval = null;
     }
 
     render(state) {
@@ -28,7 +30,9 @@ PAP.Renderer = class Renderer {
             currentColor,
             gridEnabled,
             mirrorEnabled,
-            brushSize
+            brushSize,
+            lassoPoints,
+            lassoSelection
         } = state;
 
         const ctx = this.ctx;
@@ -65,7 +69,15 @@ PAP.Renderer = class Renderer {
             this._drawShapePreview(startX, startY, mouseX, mouseY, zoom, currentTool, currentColor);
         }
 
-        // 7. Brush cursor preview (when not drawing shapes)
+        // 7. Lasso preview (while drawing) or selection (marching ants)
+        if (isDrawing && lassoPoints && lassoPoints.length >= 2) {
+            this._drawLassoPreview(lassoPoints, zoom, currentTool, currentColor);
+        }
+        if (lassoSelection && lassoSelection.length >= 3) {
+            this._drawMarchingAnts(lassoSelection, zoom);
+        }
+
+        // 8. Brush cursor preview (when not drawing shapes)
         if (mouseX !== undefined && mouseY !== undefined && !isDrawing) {
             this._drawBrushCursor(mouseX, mouseY, zoom, brushSize || 1, canvasWidth, canvasHeight);
         }
@@ -259,6 +271,73 @@ PAP.Renderer = class Renderer {
         }
 
         ctx.globalAlpha = 1;
+    }
+
+    _drawLassoPreview(points, zoom, tool, color) {
+        if (points.length < 2) return;
+        const ctx = this.ctx;
+
+        ctx.save();
+        ctx.strokeStyle = tool === 'lassoFill' ? (color ? color.toCSSString() : 'rgba(255,255,255,0.8)') : 'rgba(255,255,255,0.8)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+
+        ctx.beginPath();
+        ctx.moveTo(points[0].x * zoom + zoom / 2, points[0].y * zoom + zoom / 2);
+        for (let i = 1; i < points.length; i++) {
+            ctx.lineTo(points[i].x * zoom + zoom / 2, points[i].y * zoom + zoom / 2);
+        }
+
+        // Show closing line back to start
+        if (points.length >= 3) {
+            ctx.lineTo(points[0].x * zoom + zoom / 2, points[0].y * zoom + zoom / 2);
+        }
+
+        if (tool === 'lassoFill' && points.length >= 3) {
+            ctx.globalAlpha = 0.15;
+            ctx.fillStyle = color ? color.toCSSString() : 'rgba(255,255,255,0.3)';
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        }
+
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    _drawMarchingAnts(points, zoom) {
+        if (points.length < 3) return;
+        const ctx = this.ctx;
+
+        ctx.save();
+        ctx.lineWidth = 1;
+
+        // Draw black base line
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(points[0].x * zoom + zoom / 2, points[0].y * zoom + zoom / 2);
+        for (let i = 1; i < points.length; i++) {
+            ctx.lineTo(points[i].x * zoom + zoom / 2, points[i].y * zoom + zoom / 2);
+        }
+        ctx.closePath();
+        ctx.stroke();
+
+        // Draw white animated dash on top
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.setLineDash([6, 6]);
+        ctx.lineDashOffset = -this._marchingAntsOffset;
+        ctx.beginPath();
+        ctx.moveTo(points[0].x * zoom + zoom / 2, points[0].y * zoom + zoom / 2);
+        for (let i = 1; i < points.length; i++) {
+            ctx.lineTo(points[i].x * zoom + zoom / 2, points[i].y * zoom + zoom / 2);
+        }
+        ctx.closePath();
+        ctx.stroke();
+
+        ctx.restore();
+
+        // Animate marching ants
+        this._marchingAntsOffset = (this._marchingAntsOffset + 0.5) % 12;
     }
 
     resizeCanvas(width, height, zoom) {

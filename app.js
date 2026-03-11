@@ -64,6 +64,10 @@ class DarkPixel {
         this._mouseX = 0;
         this._mouseY = 0;
 
+        // Lasso tool state
+        this._lassoPoints = [];
+        this._lassoSelection = null; // stored selection polygon after lasso completes
+
         this._initializeCanvas();
         this._bindPointerEvents();
         this._bindKeyboardShortcuts();
@@ -155,7 +159,11 @@ class DarkPixel {
                 this.currentColor = this.fgColor;
             }
 
-            if (this.currentTool === 'eyedropper') {
+            // Lasso tools: start collecting points
+            if (this.currentTool === 'lasso' || this.currentTool === 'lassoFill') {
+                this._lassoPoints = [{ x: ctx.x, y: ctx.y }];
+                this._lassoSelection = null;
+            } else if (this.currentTool === 'eyedropper') {
                 this._pickColor(ctx.x, ctx.y);
             } else {
                 this._performToolAction(ctx.x, ctx.y, ctx.button, ctx.pressure);
@@ -167,14 +175,22 @@ class DarkPixel {
             this._mouseX = ctx.x;
             this._mouseY = ctx.y;
 
-            if (['pencil', 'eraser'].includes(this.currentTool)) {
+            if (this.currentTool === 'lasso' || this.currentTool === 'lassoFill') {
+                // Add point if it moved to a new pixel
+                const last = this._lassoPoints[this._lassoPoints.length - 1];
+                if (last && (last.x !== ctx.x || last.y !== ctx.y)) {
+                    this._lassoPoints.push({ x: ctx.x, y: ctx.y });
+                }
+            } else if (['pencil', 'eraser'].includes(this.currentTool)) {
                 this._performToolAction(ctx.x, ctx.y, 0, ctx.pressure);
             }
             this.render();
         };
 
         this.pointerHandler.onStrokeEnd = (ctx) => {
-            if (['line', 'rect', 'circle', 'rectFilled', 'circleFilled'].includes(this.currentTool)) {
+            if (this.currentTool === 'lasso' || this.currentTool === 'lassoFill') {
+                this._finalizeLasso();
+            } else if (['line', 'rect', 'circle', 'rectFilled', 'circleFilled'].includes(this.currentTool)) {
                 this._finalizeShape(ctx.x, ctx.y);
             }
 
@@ -214,6 +230,14 @@ class DarkPixel {
         kb.register('c', () => this.selectTool('circle'));
         kb.register('shift+r', () => this.selectTool('rectFilled'));
         kb.register('shift+c', () => this.selectTool('circleFilled'));
+        kb.register('s', () => this.selectTool('lasso'));
+        kb.register('shift+s', () => this.selectTool('lassoFill'));
+
+        // Lasso selection actions
+        kb.register('delete', () => this._lassoDeleteSelection());
+        kb.register('backspace', () => this._lassoDeleteSelection());
+        kb.register('enter', () => this._lassoFillSelection());
+        kb.register('escape', () => this._clearLassoSelection());
 
         kb.register('x', () => this._swapColors());
         kb.register('g', () => this._toggleGrid());
@@ -435,13 +459,18 @@ class DarkPixel {
     // --- Tools ---
 
     selectTool(tool) {
+        // Clear lasso selection when switching away from lasso tools
+        if (this.currentTool !== tool && (this.currentTool === 'lasso' || this.currentTool === 'lassoFill')) {
+            this._lassoSelection = null;
+            this._lassoPoints = [];
+        }
         this.currentTool = tool;
         document.querySelectorAll('.tool-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.tool === tool);
         });
         const toolInfo = document.getElementById('toolInfo');
         if (toolInfo) {
-            const names = { pencil:'Pencil', eraser:'Eraser', fill:'Fill', eyedropper:'Eyedropper', line:'Line', rect:'Rectangle', circle:'Circle', rectFilled:'Filled Rect', circleFilled:'Filled Circle' };
+            const names = { pencil:'Pencil', eraser:'Eraser', fill:'Fill', eyedropper:'Eyedropper', line:'Line', rect:'Rectangle', circle:'Circle', rectFilled:'Filled Rect', circleFilled:'Filled Circle', lasso:'Lasso', lassoFill:'Lasso Fill' };
             toolInfo.textContent = names[tool] || tool;
         }
     }
@@ -528,6 +557,95 @@ class DarkPixel {
         this._updateColorSwatches();
     }
 
+    _finalizeLasso() {
+        if (this._lassoPoints.length < 3) {
+            this._lassoPoints = [];
+            return;
+        }
+
+        const layer = this.layerManager.getActiveLayer();
+        if (!layer || layer.locked) {
+            this._lassoPoints = [];
+            return;
+        }
+
+        if (this.currentTool === 'lassoFill') {
+            // Fill the polygon immediately
+            PAP.fillPolygon(layer.pixelData, this._lassoPoints, this.currentColor);
+            this._lassoPoints = [];
+            this._lassoSelection = null;
+        } else {
+            // Lasso select: store selection for later actions (Delete/Enter)
+            this._lassoSelection = [...this._lassoPoints];
+            this._lassoPoints = [];
+            this._startMarchingAnts();
+        }
+    }
+
+    _lassoDeleteSelection() {
+        if (!this._lassoSelection || this._lassoSelection.length < 3) return;
+        const layer = this.layerManager.getActiveLayer();
+        if (!layer || layer.locked) return;
+
+        const cmd = new PAP.DrawCommand(layer, 'lasso-delete');
+        cmd.captureBeforeState();
+
+        const transparent = new PAP.Color(0, 0, 0, 0);
+        PAP.fillPolygon(layer.pixelData, this._lassoSelection, transparent);
+
+        const hasChanges = cmd.captureAfterState();
+        if (hasChanges) this.history.push(cmd);
+
+        this._lassoSelection = null;
+        this._stopMarchingAnts();
+        this.render();
+    }
+
+    _lassoFillSelection() {
+        if (!this._lassoSelection || this._lassoSelection.length < 3) return;
+        const layer = this.layerManager.getActiveLayer();
+        if (!layer || layer.locked) return;
+
+        const cmd = new PAP.DrawCommand(layer, 'lasso-fill');
+        cmd.captureBeforeState();
+
+        PAP.fillPolygon(layer.pixelData, this._lassoSelection, this.fgColor);
+
+        const hasChanges = cmd.captureAfterState();
+        if (hasChanges) this.history.push(cmd);
+
+        this._lassoSelection = null;
+        this._stopMarchingAnts();
+        this.render();
+    }
+
+    _clearLassoSelection() {
+        this._lassoSelection = null;
+        this._lassoPoints = [];
+        this._stopMarchingAnts();
+        this.render();
+    }
+
+    _startMarchingAnts() {
+        if (this._marchingAntsRAF) return;
+        const animate = () => {
+            if (!this._lassoSelection) {
+                this._marchingAntsRAF = null;
+                return;
+            }
+            this.render();
+            this._marchingAntsRAF = requestAnimationFrame(animate);
+        };
+        this._marchingAntsRAF = requestAnimationFrame(animate);
+    }
+
+    _stopMarchingAnts() {
+        if (this._marchingAntsRAF) {
+            cancelAnimationFrame(this._marchingAntsRAF);
+            this._marchingAntsRAF = null;
+        }
+    }
+
     // --- History ---
 
     undo() { this.history.undo(); this.render(); }
@@ -574,7 +692,9 @@ class DarkPixel {
             currentColor: this.currentColor,
             gridEnabled: this.gridEnabled,
             mirrorEnabled: this.mirrorEnabled,
-            brushSize: this.brushSize
+            brushSize: this.brushSize,
+            lassoPoints: this._lassoPoints,
+            lassoSelection: this._lassoSelection
         });
 
         // Update preview canvas

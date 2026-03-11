@@ -171,6 +171,55 @@ PAP.floodFill = function floodFill(pixelData, x, y, newColor) {
     }
 };
 
+PAP.fillPolygon = function fillPolygon(pixelData, points, color) {
+    if (points.length < 3) return;
+
+    // Find bounding box
+    let minY = Infinity, maxY = -Infinity;
+    for (const p of points) {
+        if (p.y < minY) minY = p.y;
+        if (p.y > maxY) maxY = p.y;
+    }
+    minY = Math.max(0, Math.floor(minY));
+    maxY = Math.min(pixelData.height - 1, Math.floor(maxY));
+
+    // Scanline fill
+    for (let y = minY; y <= maxY; y++) {
+        const intersections = [];
+        for (let i = 0; i < points.length; i++) {
+            const j = (i + 1) % points.length;
+            const yi = points[i].y, yj = points[j].y;
+            const xi = points[i].x, xj = points[j].x;
+
+            if ((yi <= y && yj > y) || (yj <= y && yi > y)) {
+                const t = (y - yi) / (yj - yi);
+                intersections.push(xi + t * (xj - xi));
+            }
+        }
+        intersections.sort((a, b) => a - b);
+
+        for (let k = 0; k < intersections.length - 1; k += 2) {
+            const xStart = Math.max(0, Math.ceil(intersections[k]));
+            const xEnd = Math.min(pixelData.width - 1, Math.floor(intersections[k + 1]));
+            for (let x = xStart; x <= xEnd; x++) {
+                pixelData.setPixel(x, y, color);
+            }
+        }
+    }
+};
+
+PAP.strokePolygon = function strokePolygon(pixelData, points, color) {
+    if (points.length < 2) return;
+    for (let i = 0; i < points.length; i++) {
+        const j = (i + 1) % points.length;
+        PAP.drawLine(pixelData,
+            Math.round(points[i].x), Math.round(points[i].y),
+            Math.round(points[j].x), Math.round(points[j].y),
+            color
+        );
+    }
+};
+
 // Backward compatibility - keep global function names working
 function drawLine(pixelData, x0, y0, x1, y1, color) { PAP.drawLine(pixelData, x0, y0, x1, y1, color); }
 function drawRect(pixelData, x0, y0, x1, y1, color, filled) { PAP.drawRect(pixelData, x0, y0, x1, y1, color, filled); }
